@@ -10,5 +10,5 @@ import pyaudio
 import pyttsx3
 import requests
 from PIL import Image, ImageTk
-from pynput.keyboard import Controller, Key
 from vosk import KaldiRecognizer, Model
+
