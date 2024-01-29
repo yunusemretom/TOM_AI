@@ -1,72 +1,36 @@
 import pyaudio
 import wave
-import multiprocessing as mp
-import threading as th
-
-# Ses kaydı için gerekli ayarlar
-FORMAT = pyaudio.paInt16  # Ses formatı
-CHANNELS = 1              # Tek kanal
-RATE = 44100              # Örnekleme hızı (örneğin 44.1 kHz)
-CHUNK = 1024              # Ses bloğunun boyutu
-
-RECORD_SECONDS = 10        # Kaydedilecek süre
-OUTPUT_FILENAME = "output.wav"
-
-mic = pyaudio.PyAudio()
-
-
+ 
 FORMAT = pyaudio.paInt16
-
-# Pyaudio nesnesini başlat
+CHANNELS = 1
+RATE = 44100
+CHUNK = 1024
+RECORD_SECONDS = 5
+WAVE_OUTPUT_FILENAME = "file.wav"
+ 
 audio = pyaudio.PyAudio()
-for i in range(audio.get_device_count()):
-  dev = audio.get_device_info_by_index(i)
-  print((i,dev['name'],dev['maxInputChannels']))
-# Ses kaydı yapma fonksiyonu
-kayit = True
-def record_audio():
-    global kayit
-    stream = mic.open(format=pyaudio.paInt16,channels=1,rate=16000,output=False,input_device_index = 7,input=True,frames_per_buffer=8192)
-    stream.start_stream()
-    print("Kayıt başladı...")
-
-    frames = []
-
-    while kayit:
-        data = stream.read(8192)
-        frames.append(data)
-        print(kayit)
-
-    print("Kayıt tamamlandı.")
-    with wave.open(OUTPUT_FILENAME, 'wb') as wf:
-        wf.setnchannels(1)
-        wf.setsampwidth(audio.get_sample_size(FORMAT))
-        wf.setframerate(16000)
-        wf.writeframes(b''.join(frames))
-    
-
-    return frames
-
-
-
-# Ses kaydını kaydetme
-
-
-
-frames = mp.Process(target=record_audio)
-frames.start()
-input("e")
-kayit=False
-#frames = th.Thread(target=record_audio)
-#frames2 = th.Thread(target=cevap)
-#frames.start()
-#frames2.start()
-
-
-
-
-# Ses kaydını dosyaya yazma
-
-
-# Pyaudio nesnesini kapat
+ 
+# start Recording
+stream = audio.open(format=FORMAT, channels=CHANNELS,
+                rate=RATE, input=True,
+                frames_per_buffer=CHUNK)
+print("recording...")
+frames = []
+ 
+for i in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
+    data = stream.read(CHUNK)
+    frames.append(data)
+print("finished recording")
+ 
+ 
+# stop Recording
+stream.stop_stream()
+stream.close()
 audio.terminate()
+ 
+waveFile = wave.open(WAVE_OUTPUT_FILENAME, 'wb')
+waveFile.setnchannels(CHANNELS)
+waveFile.setsampwidth(audio.get_sample_size(FORMAT))
+waveFile.setframerate(RATE)
+waveFile.writeframes(b''.join(frames))
+waveFile.close()

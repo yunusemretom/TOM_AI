@@ -1,35 +1,31 @@
-"""
-Kodda bazı bölgelerde kaybord işlemleri olduğu için oralarda print ile yazı yazdırılmıştır.
-Siz kendi bilgisayarınıza uygun kütüphaneyi indirin ve kullanmaya başlayın.
-
-"""
-
-import json
 import time
-import tkinter as tk
 import webbrowser
 from random import randint
 import multiprocessing as mp
-
 import wave
 import pyaudio
 import pyttsx3
-import requests
-from PIL import Image, ImageTk
-
 from vosk import KaldiRecognizer, Model
-#from texttospeech2 import *
+from Library.Hava_durum import hava, temp
+from Library.arka_plan import background
+from Library.Haber import news
+from Library.klavye_yonet import *
 #sesi yazıya çevirmek için veri seti
-model = Model("vosk-model-small-tr-0.3")
+model = Model("TOM_AI/vosk-model-small-tr-0.3")
 recognizer = KaldiRecognizer(model,16000)
 
-#klavye kontrollerine erişmek için
-
-
-
+#mikrofon için gerekli ayaralar. Değiştirilmesi önerilmez!
+FORMAT = pyaudio.paInt16
+CHANNELS = 1
+RATE = 16000
+CHUNK = 1024
+WAVE_OUTPUT_FILENAME = "file.wav"
+ 
 #burada ses verisini alıyoruz
 mic = pyaudio.PyAudio()
-stream = mic.open(format=pyaudio.paInt16,channels=1,rate=16000,input=True,frames_per_buffer=8192)
+stream = mic.open(format=FORMAT, channels=CHANNELS,
+                rate=RATE, input=True,
+                frames_per_buffer=CHUNK)
 stream.start_stream()
 FORMAT = pyaudio.paInt16
 
@@ -38,12 +34,11 @@ engine = pyttsx3.init()
 engine.setProperty('rate', 150)
 voices = engine.getProperty('voices')  
 print(len(voices))
-engine.setProperty('voice', 'turkish')
+engine.setProperty('voice', voices[3].id)
 
 def konus(yazi):
     engine.say(yazi)
     engine.runAndWait()
-        
 
 
 #sesimizi kaydetmek ve göndermek için
@@ -62,7 +57,7 @@ def record():
 
 nasilsincumeleleri = ["nasılsın","naber","ne haber","napıyorsun","nasıl gidiyor","naber","napıyon","nasıl","nabıyon","merhaba"]
 iltifat = ["mükemmelsin","çok iyisin","mükemmel","efsane","saol","teşekkürler","çok","iyi","çok iyi"]
-donus = ["iyiyim sen","çok iyiyim","biraz keyifsizim"]
+donus = ["iyiyim sen","çok iyiyim","Teşekkür ederim beni düşün"]
 kimsin = ["sen nesin","nesin","kimsin","ne iş yaparısın"]
 donustesekkur = ["Çok teşekkürler","beni utandırıyorsun","utandım","teşekkürler","yardımcı olabildiysem ne mutlu bana"]
 
@@ -79,13 +74,13 @@ noteread = ["notlarımı oku","notları oku","notlar"]
 haber = ["haberler","haberleri","haber","gündem","gazete","oku","haberleri oku"]
 
 playlist = ["müzik listemi çal","müzik listem","müzik","playlist","listem","müzik listeleri","müzik aç"]
-playsong = ["başlat","devam et","şarkıyı başlat","şarkıyı devam et","müziği aç"]
+playsong = ["başlat","devam et","şarkıyı başlat","şarkıyı devam et","müziği aç","şarkı aç"]
 stopsong = ["şarkıyı kapat","şarkıyı durdur","durdur"]
 nextsong=["şarkıyı değiştir","sonraki","sonraki şarkı", "sonraki müzik","müzik değiştir","müziği değiştir","değiştir"]
 oncekisarki=["önceki","önceki şarkı","önceki müzik"]
 
 kapatma = ["sistemi kapat","uyu","kendini kapat","görüşürüz", "bay bay"]
-tomopen = ["hey tom","hey","alo","tom","açıl","açıl susam açıl","açın"]
+tomopen = ["hey tom","hey","alo","tom","açıl","açıl susam açıl","açın","uyan bakalım"]
 tomopendonus = ["her zaman efendim","açıldım efendim","aktifim"]
 
 animsatici = ["anımsatıcı oluştur","anımsatıcı kur","anımsatıcı başlat","anımsatıcı oluş"]
@@ -105,6 +100,7 @@ sesazaltma = ["ses kıs", "sesi azalt","sesini azalt","ses azalt","sesi azalt","
 seskaydet=["ses kaydet","sesi kaydet","yeni proje","ses kaydı","kayıt yap"]
 seskaydetdur=["ses kaydını durdur","kaydı durdur", "kayıt dur","bitir"]
 
+background_music = ["arka planını kapat","arka planı kapat", "arka plan muziğini kapat","planı kapat", "arka kapat","arka planı kapat","sessiz ol", "sessiz mod"]
 def kelime_kontrol(cumle, kelime_listesi):
     for kelime in kelime_listesi:
         if kelime in cumle:
@@ -141,18 +137,21 @@ def responsive(text):
         if kelime_kontrol(text,baglantikur):
             konus("bağlantı kuruluyor")
 
+        if kelime_kontrol(text,background_music):
+            konus("kapatıldı")
+            background(False)
         
         if kelime_kontrol(text,tomopen):
-                konus(tomopendonus[randint(0,len(tomopendonus)-1)])
+             konus(tomopendonus[randint(0,len(tomopendonus)-1)])
 
         if kelime_kontrol(text,tempature):
-            konus("hava 36 derece açık")
+            konus(f"Hava{temp()} derece ve {hava()}")
 
         if kelime_kontrol(text,nasilsincumeleleri):
             konus(donus[randint(0,len(donus)-1)])
 
         if kelime_kontrol(text,kimsin):
-            konus("Ben yunus Emre Tom tarafından yapılan sesli bir asistanım. Birçok projeye yardım ederim.")
+            konus("Ben adım TOM. Ben sesli bir asistanım. Birçok projeye yardım etmek amacaıyla oluşturuldum.")
 
         if kelime_kontrol(text,clock):
             saat = str(time.localtime().tm_hour)+" "+str(time.localtime().tm_min)
@@ -160,22 +159,23 @@ def responsive(text):
 
         if kelime_kontrol(text,playlist):
             konus("açılıyor")
-            webbrowser.open("https://www.youtube.com/watch?v=YbWkR6mFI6s&list=RDrnhBElHzHb0&index=3",new=2)
+            webbrowser.open("https://www.youtube.com/watch?v=YbWkR6mFI6s&list=RDrnhBElHzHb0&index=1",new=2)
 
         if kelime_kontrol(text,penceredegistir):
             print("pencere değişti")
+            uygulama_degistir()
 
         elif kelime_kontrol(text,nextsong):
-            print("sonraki şarkı")
+            sonraki_sarki()
 
         if kelime_kontrol(text,oncekisarki):
-            print("önceki şarkı")
+            onceki_sarki()
 
         if kelime_kontrol(text,stopsong):
-            print("şarkıyı durdur")
+            play_pause()
 
         if kelime_kontrol(text,playsong):
-            print("şarkı oynat")
+            play_pause()
 
         if kelime_kontrol(text,search):
             website = text.replace("arama yap", "")
@@ -196,12 +196,12 @@ def responsive(text):
         
         if kelime_kontrol(text,sesartırma):
             for i in range(5):
-                print("ses arttır")
+                ses_ac()
                 time.sleep(0.1)
 
         if kelime_kontrol(text,sesazaltma) :
             for i in range(5):
-                print("ses azalt")
+                ses_kıs()
                 time.sleep(0.1)
 
         if kelime_kontrol(text,seskaydet):
@@ -222,8 +222,7 @@ def responsive(text):
             kayit=False
 
         if 'sesi kapat' in text :
-            
-            print("sei kapat")
+            ses_kapat()
             time.sleep(0.1)
 
         else:
@@ -237,9 +236,13 @@ def responsive(text):
             konus("görüşmek üzere")
             exit()
 
-konus("Yeniden hoşgeldiniz")
-konus("sisteminiz hazır ve emrinizdeyiz")
 
+background(durum = True)
+time.sleep(2)
+konus("Hoş geldiniz efendim. Güzel bir gün.")
+konus(f"Hava{temp()} derece ve {hava()}")
+konus("Güncel haberlerden")
+konus(news())
 while True:
     question = record()
     if question !=None:
