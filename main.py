@@ -26,6 +26,13 @@ RATE = 16000
 CHUNK = 1024
 WAVE_OUTPUT_FILENAME = "file.wav"
  
+#mikrofon için gerekli ayaralar. Değiştirilmesi önerilmez!
+FORMAT = pyaudio.paInt16
+CHANNELS = 1
+RATE = 16000
+CHUNK = 1024
+WAVE_OUTPUT_FILENAME = "file.wav"
+ 
 #burada ses verisini alıyoruz
 mic = pyaudio.PyAudio()
 stream = mic.open(format=FORMAT, channels=CHANNELS,
@@ -40,6 +47,7 @@ engine = pyttsx3.init()
 engine.setProperty('rate', 150)
 voices = engine.getProperty('voices')  
 print(len(voices))
+engine.setProperty('voice', voices[3].id)
 engine.setProperty('voice', voices[3].id)
 
 def konus(yazi):
@@ -84,6 +92,7 @@ commands = {
 
 }
 
+background_music = ["arka planını kapat","arka planı kapat", "arka plan muziğini kapat","planı kapat", "arka kapat","arka planı kapat","sessiz ol", "sessiz mod"]
 def kelime_kontrol(cumle, kelime_listesi):
     for kelime in kelime_listesi:
         if kelime in cumle:
