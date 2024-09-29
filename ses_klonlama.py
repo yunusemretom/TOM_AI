@@ -1,12 +1,12 @@
 import torch
 from TTS.api import TTS
-
+import pygame
 # Cihazı ayarla (GPU varsa kullan, yoksa CPU kullan)
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Using device: {device}")
 
-# TTS modelini başlat ve cihaza taşı
-tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(device)
+wav_packes = "adsız.wav"
+output_file = "output.wav"
 
 # Metni tanımla
 text = """Bu, ses modelimi test etmek için hazırladığım bir metindir. 
@@ -17,28 +17,32 @@ Ayrıca, vurguların ve tonlamaların doğru olup olmadığını anlamak için f
 Teknoloji her geçen gün gelişiyor ve ben de bu gelişmelere ayak uyduruyorum. 
 Ses modelim bu metni sorunsuz bir şekilde okuyabiliyorsa, başarılı demektir."""
 
-# Eğitim sonrası modeli kaydetmek için fonksiyon
-def save_model(model, file_path):
-    torch.save(model.state_dict(), file_path)
-    print(f"Model {file_path} olarak kaydedildi.")
+text2 ="""
+Hello, I am reading this text for voice analysis and testing. 
+I need to speak in different tones and speeds to ensure that the voice is recorded clearly and accurately. 
+Throughout the day, we encounter different words and sentences. 
+This test is to check whether my voice can correctly interpret all kinds of words. 
+Now, let's go over a few short sentences: The weather is very nice today. I turned on my computer and started working.
+Now, let's move on to longer and more complex sentences: 
+Technology plays a big role in human life, so it is very important to keep up with new technologies. 
+If this text is being read clearly, it means the voice model is working successfully.
+"""
 
-# Kaydedilen modeli yüklemek için fonksiyon
-def load_model(model, file_path, device):
-    model.load_state_dict(torch.load(file_path))
-    model.to(device)
-    print(f"Model {file_path} dosyasından başarıyla yüklendi.")
-    return model
+# Init TTS
+tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(device)
 
-# 1. Aşama: Ses üretmeden önce model eğitimini kaydet
-model_save_path = "tts_model.pth"
-save_model(tts, model_save_path)
 
-# 2. Aşama: Kaydedilen modeli yükle
-tts = load_model(TTS("tts_models/multilingual/multi-dataset/xtts_v2"), model_save_path, device)
+def speak(text):
+    tts.tts_to_file(text=text, speaker_wav=wav_packes, language="tr", file_path="output.wav")
+    print(f"Ses üretimi tamamlandı ve {output_file} dosyasına kaydedildi.")
+    pygame.init()
+    pygame.mixer.init()
+    music = pygame.mixer.Sound("output.wav")
+    channel2 = pygame.mixer.Channel(0)
+    music.set_volume(0.2)
+    
+    channel2.play(music)
 
-# 3. Aşama: Metni seslendir ve dosyaya kaydet
-wav_packes = "edit.wav"
-output_file = "output.wav"
-tts.tts_to_file(text=text, speaker_wav=wav_packes, language="tr", file_path=output_file)
+    while channel2.get_busy():
+        pygame.time.Clock().tick(10)
 
-print(f"Ses üretimi tamamlandı ve {output_file} dosyasına kaydedildi.")

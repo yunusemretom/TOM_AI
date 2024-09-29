@@ -10,7 +10,7 @@ def ses_ac():
     keyboard.press(Key.media_volume_up)
     keyboard.release(Key.media_volume_up)
 
-def ses_kıs():
+def ses_kis():
     keyboard.press(Key.media_volume_down)
     keyboard.release(Key.media_volume_down)
 
