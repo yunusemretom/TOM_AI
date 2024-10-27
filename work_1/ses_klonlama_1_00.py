@@ -8,7 +8,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Using device: {device}")
 
-wav_packes = "deneme2.wav"
+wav_packes = "./BarisOzcan3.wav"
 output_file = "output.wav"
 
 # Metni tanımla

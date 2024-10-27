@@ -1,7 +1,11 @@
 
 #sesi yazıya çevirmek için veri seti
-from ses_klonlama_1_01 import speak  # Konuşma sentezi için speak fonksiyonunu içe aktar
-from whisper_deneme_1_01 import transcript  # Ses tanıma için transcript fonksiyonunu içe aktar
+from ses_klonlama_1_00 import speak  # Konuşma sentezi için speak fonksiyonunu içe aktar
+from whisper_deneme_1_00 import transcript  # Ses tanıma için transcript fonksiyonunu içe aktar
+import sys
+import os
+# Dosyanızın bulunduğu dizinin yolunu ekleyin
+sys.path.append(os.path.abspath(r'C:\Users\TOM\Documents\Projeler\Tom_ai'))
 
 from Library.Hava_durum import hava, temp  # Hava durumu bilgilerini almak için fonksiyonları içe aktar
 from Library.arka_plan import background  # Arka plan işlemleri için background fonksiyonunu içe aktar
