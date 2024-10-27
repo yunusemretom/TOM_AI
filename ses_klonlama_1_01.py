@@ -13,7 +13,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)  # Gelecek uyarıları
 device = "cuda" if torch.cuda.is_available() else "cpu"  # GPU varsa kullan, yoksa CPU kullan
 print(f"Using device: {device}")  # Kullanılan cihazı yazdır
 
-WAV_PACKAGE = "model4.wav"  # Örnek ses dosyası
+WAV_PACKAGE = ["BarisOzcan3.wav"]  # Örnek ses dosyası
 CACHE_DIR = "audio_cache"  # Önbellek dizini
 
 tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False).to(device)  # TTS modelini yükle
@@ -25,7 +25,7 @@ def get_cache_path(text, language):  # Önbellek dosya yolunu oluştur
     return os.path.join(CACHE_DIR, f"cache_{text_hash}.wav")  # Önbellek dosya yolunu döndür
 
 async def generate_audio(text, language, cache_path):  # Ses dosyası oluştur
-    tts.tts_to_file(text=text, speaker_wav=WAV_PACKAGE, language=language, file_path=cache_path)  # TTS ile ses oluştur
+    tts.tts_to_file(text=text, speaker_wav=WAV_PACKAGE, language=language, file_path=cache_path,split_sentences=True)  # TTS ile ses oluştur
     print(f"Ses üretimi tamamlandı ve {cache_path} dosyasına kaydedildi.")  # Bilgi mesajı yazdır
 
 def play_audio(file_path):  # Ses dosyasını çal
