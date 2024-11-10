@@ -13,7 +13,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)  # Gelecek uyarıları
 device = "cuda" if torch.cuda.is_available() else "cpu"  # GPU varsa kullan, yoksa CPU kullan
 print(f"Using device: {device}")  # Kullanılan cihazı yazdır
 
-WAV_PACKAGE = ["./BarisOzcan4.wav"]  # Örnek ses dosyası
+WAV_PACKAGE = ["./ugur_t.mp3"]  # Örnek ses dosyası
 CACHE_DIR = "audio_cache"  # Önbellek dizini
 
 tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False).to(device)  # TTS modelini yükle

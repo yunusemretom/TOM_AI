@@ -18,7 +18,7 @@ def speak(data,kisi=1):
     pygame.mixer.init()
     music = pygame.mixer.Sound("output.mp3")
     channel2 = pygame.mixer.Channel(0)
-    music.set_volume(0.2)
+    music.set_volume(1)
     
     channel2.play(music)
 
@@ -26,13 +26,5 @@ def speak(data,kisi=1):
         pygame.time.Clock().tick(10)
 
 
-pygame.init()
-pygame.mixer.init()
-music = pygame.mixer.Sound("output.wav")
-channel2 = pygame.mixer.Channel(0)
-music.set_volume(0.2)
-
-channel2.play(music)
-
-while channel2.get_busy():
-    pygame.time.Clock().tick(10)
+if __name__ == "__main__":
+    speak("merhaba bu bir ses deneme metnidir")
