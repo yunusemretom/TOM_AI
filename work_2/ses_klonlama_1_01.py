@@ -20,6 +20,9 @@ tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False).t
 
 os.makedirs(CACHE_DIR, exist_ok=True)  # Önbellek dizinini oluştur (varsa hata verme)
 
+# Geçici dizini ayarlayın
+os.environ['TMPDIR'] = 'C:/Users/TOM/Documents/Temp'  # Yazma iznine sahip olduğunuz bir dizine değiştirin
+
 def get_cache_path(text, language):  # Önbellek dosya yolunu oluştur
     text_hash = hashlib.md5(f"{text}_{language}".encode()).hexdigest()  # Metin ve dil bilgisinden hash oluştur
     return os.path.join(CACHE_DIR, f"cache_{text_hash}.wav")  # Önbellek dosya yolunu döndür

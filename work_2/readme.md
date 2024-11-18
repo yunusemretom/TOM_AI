@@ -56,3 +56,4 @@ Bu sistem, aşağıdaki adımlarla çalışır:
 
 Bu yapıyla, kullanıcıyla doğal bir etkileşim sağlanır. 💡
 
+playback delete false
