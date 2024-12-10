@@ -100,8 +100,9 @@ if __name__ == "__main__":
 
     # TTS kullanarak ses oluştur
     input_text = "Merhaba, bu bir sesli metin dönüşümüdür."
+    input_text = input("Metni girini: ")
     lang = "tr"  # Türkçe
-    speaker_audio = "./a12.wav"  # Konuşmacı örnek ses dosyası
+    speaker_audio = "./ugur_t.mp3"  # Konuşmacı örnek ses dosyası
 
     if not os.path.exists(speaker_audio):
         raise FileNotFoundError(f"Speaker audio file bulunamadı: {speaker_audio}")
