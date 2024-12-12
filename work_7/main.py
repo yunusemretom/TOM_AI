@@ -1,6 +1,6 @@
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_ollama.llms import OllamaLLM
-from fasterWhisper_deneme import sesanalizi
+import fasterWhisper_deneme as stt
 import ses_klonlama_2_00 as tts
 from play_soundfile_deneme import play_sound
 import os
@@ -60,12 +60,16 @@ def yanit(question):
     chain = prompt | llm_model
     return chain.invoke({"question": question, "commands": commands_dict})
 
+
+transcriber = stt.AudioTranscriber()
 while True:
+    
     try:
-        metin = sesanalizi()
-        if metin:
-            print("Gelen veri:", metin)
-            responsive = yanit(metin)
+        metin = transcriber.process_audio()
+        if metin and len(metin) > 0:  # metin listesi boş değilse
+            son_metin = metin[-1]  # listenin son elemanını al
+            print("Gelen veri:", son_metin)
+            responsive = yanit(son_metin)
             print("gelen yanit:", responsive)
             
             cevap_kismi = responsive.split("Cevap", 1)[1] if "Cevap" in responsive else None

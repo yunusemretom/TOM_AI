@@ -1,58 +1,81 @@
-# AI Proje Kütüphanesi 🤖📚
+# 🎙️ Sesli Asistan Projesi
 
-Bu proje, çeşitli yapay zeka ve medya işleme araçlarını içeren bir kütüphane sunmaktadır. Aşağıda, projede kullanılan üç ana dosyanın özeti bulunmaktadır.
+## 📝 Proje Açıklaması
+Bu proje, Türkçe konuşma tanıma, metin üretme ve ses sentezleme özelliklerine sahip bir sesli asistan uygulamasıdır. Kullanıcıların sesli komutlarını algılayıp, uygun yanıtlar üreterek sesli geri bildirim sağlar.
 
-## 1. LLM Fail Model Testi (`work_7/llm_fail_model_test.py`) 🧠
+## 🛠️ Temel Özellikler
+- 🎤 Gerçek zamanlı ses tanıma (Faster Whisper)
+- 🤖 Yapay zeka destekli metin üretimi (Mistral/Ollama)
+- 🗣️ Kişiselleştirilmiş ses klonlama (XTTS)
+- 🎮 Ev otomasyonu komut sistemi
+- 🔊 Gerçek zamanlı ses çıkışı
 
-Bu dosya, **Ollama** isimli bir yapay zeka modelini kullanarak kullanıcıdan gelen sorulara yanıt vermek için bir **Agent** sınıfı tanımlar. Ajan, belirli bir rol üstlenerek metin üretir. 
+## 💻 Kullanılan Teknolojiler
+- Faster Whisper: Konuşma tanıma
+- Langchain & Ollama: LLM entegrasyonu
+- XTTS (XTensorTTS): Ses sentezleme
+- PyGame: Ses çalma
+- YouTube-DLP: YouTube ses indirme
 
-### Öne Çıkan Özellikler:
-- **Ollama Client**: Yapay zeka modeline bağlanmak için bir istemci oluşturur.
-- **Agent Sınıfı**: Kullanıcıdan gelen komutları işleyerek yanıtlar üretir.
-- **Örnek Kullanım**: Kullanıcıdan gelen bir soruya yanıt almak için `generate` metodu kullanılır.
-
-### Kullanım:
+## 📋 Komut Listesi
 ```python
-ollama_response = Ada.generate("saatin kaç olduğunu öğrenmek istiyorum")
-print(ollama_response)
+commands_dict = {
+    "ışıkları aç": 1,
+    "ışıkları kapat": 2,
+    "klimayı aç": 3,
+    "klimayı kapat": 4,
+    "tv aç": 5,
+    "tv kapat": 6,
+}
 ```
 
----
-
-## 2. LLM Model Testi (`work_7/llm_model_test.py`) 🔍
-
-Bu dosya, kullanıcının sorularını analiz eden ve belirli komutları tanımlayan bir sistem içerir. **Langchain** kütüphanesi kullanılarak, kullanıcıdan gelen cümlelerdeki komutları tespit eder.
-
-### Öne Çıkan Özellikler:
-- **Komut Şablonu**: Kullanıcının cümlesinde bir komut olup olmadığını analiz eder.
-- **Komut Sözlüğü**: Belirli komutları ve bunların numaralarını tanımlar.
-- **Zincir Yapısı**: Şablon ve model birleştirilerek kullanıcıdan gelen sorular işlenir.
-
-### Kullanım:
-```python
-result = chain.invoke({"question": "Sence türkiye nasl bir yer? içerisi çok sıcak oldu klimayı açar mısın?", "commands": commands_dict})
-print(result)
+## 🚀 Kurulum
+1. Gerekli Python paketlerini yükleyin:
+```bash
+pip install langchain-core langchain-ollama faster-whisper pygame yt-dlp torchaudio
 ```
 
----
+2. Model dosyalarını hazırlayın:
+   - XTTS model dosyaları
+   - Whisper modeli
+   - Ollama/Mistral modeli
 
-## 3. YouTube Ses İndirme (`work_7/youtube_ses_indirme.py`) 🎵
+3. Konuşmacı ses örneğini hazırlayın (`ugur_t.mp3`)
 
-Bu dosya, **yt-dlp** kütüphanesini kullanarak YouTube videolarından ses dosyası indirmeye yarayan bir fonksiyon içerir. Kullanıcı, belirli bir URL ile ses dosyasını MP3 formatında indirebilir.
+## 📦 Proje Yapısı
+- `main.py`: Ana uygulama
+- `fasterWhisper_deneme.py`: Ses tanıma modülü
+- `ses_klonlama_2_00.py`: Ses sentezleme modülü
+- `llm_model_test.py`: LLM entegrasyonu
+- `play_soundfile_deneme.py`: Ses çalma modülü
+- `youtube_ses_indirme.py`: YouTube ses indirme aracı
 
-### Öne Çıkan Özellikler:
-- **Ses İndirme**: Belirtilen URL'den en iyi ses kalitesinde dosya indirir.
-- **FFmpeg Kullanımı**: Ses dosyalarını MP3 formatına dönüştürür.
-
-### Kullanım:
-```python
-liste = ["https://www.youtube.com/watch?v=TLGrrztZpfM"]
-for i in liste:
-    download_audio(i)
+## 🎯 Kullanım
+1. Ana uygulamayı başlatın:
+```bash
+python main.py
 ```
 
----
+2. Sisteme sesli komut verin
+3. Asistan komutu işleyip sesli yanıt verecektir
 
-## Sonuç 🎉
+## 🔍 Önemli Notlar
+- Sistem Türkçe dil desteği ile çalışmaktadır
+- Ses kalitesi için sessiz bir ortam önerilir
+- GPU kullanımı performansı artıracaktır
 
-Bu proje, yapay zeka ile etkileşim kurma ve medya dosyalarını işleme konularında güçlü araçlar sunmaktadır. Her bir dosya, belirli bir işlevselliği yerine getirerek kullanıcı deneyimini geliştirmeyi hedefler. Projeyi kullanarak kendi yapay zeka uygulamalarınızı geliştirebilir ve medya içeriklerinizi kolayca işleyebilirsiniz!
+## 🤝 Katkıda Bulunma
+Projeye katkıda bulunmak için:
+1. Fork yapın
+2. Feature branch oluşturun
+3. Değişikliklerinizi commit edin
+4. Pull request gönderin
+
+## ⚠️ Gereksinimler
+- Python 3.8+
+- CUDA destekli GPU (önerilen)
+- Mikrofon
+- Hoparlör
+
+## 📜 Lisans
+Bu proje açık kaynak olarak paylaşılmıştır.
