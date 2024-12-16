@@ -7,6 +7,8 @@ from TTS.tts.models.xtts import Xtts
 import requests
 import tempfile
 import hashlib
+
+
 CACHE_DIR = "audio_cache"
 os.makedirs(CACHE_DIR, exist_ok=True)  # Klasör yoksa oluştur
 
@@ -110,12 +112,13 @@ if __name__ == "__main__":
 
     # TTS kullanarak ses oluştur
     input_text = "Merhaba, bu bir sesli metin dönüşümüdür."
-    input_text = input("Metni girini: ")
-    lang = "tr"  # Türkçe
-    speaker_audio = "./ugur_t.mp3"  # Konuşmacı örnek ses dosyası
+    while True:
+        input_text = input("Metni girini: ")
+        lang = "tr"  # Türkçe
+        speaker_audio = "./ugur_t.mp3"  # Konuşmacı örnek ses dosyası
 
-    if not os.path.exists(speaker_audio):
-        raise FileNotFoundError(f"Speaker audio file bulunamadı: {speaker_audio}")
+        if not os.path.exists(speaker_audio):
+            raise FileNotFoundError(f"Speaker audio file bulunamadı: {speaker_audio}")
 
-    output_audio_path = run_tts(model, lang, input_text, speaker_audio)
-    print(f"Ses dosyası oluşturuldu: {output_audio_path}")
+        output_audio_path = run_tts(model, lang, input_text, speaker_audio)
+        print(f"Ses dosyası oluşturuldu: {output_audio_path}")

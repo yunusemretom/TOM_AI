@@ -96,8 +96,9 @@ class AudioTranscriber:
 
 if __name__ == "__main__":
     transcriber = AudioTranscriber()
+    print("Model hazır.")
     while True:
         result = transcriber.process_audio()
         if result:
-            print(result)
+            print("Algılanan mesaj: ",result[-1])  # Son mesajı yazdır
         sleep(0.1)
