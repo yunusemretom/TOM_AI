@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from queue import Queue
 import io
 from typing import List, Optional
+import torch
 
 class OptimizedAudioTranscriber:
     def __init__(self, model_size="medium"):
