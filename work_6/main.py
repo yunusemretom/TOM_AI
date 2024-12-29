@@ -40,10 +40,12 @@ def clear_gpu_memory():
 def process_text(text):
     """Metni çevirip sese dönüştürür"""
     translated = ceviri_yap(text)  # Metni çevir
+    print("Çevrilmiş hali: ", translated)
     if translated:
         sentences = [s.strip() for s in translated.split('.') if s.strip()]  # Cümlelere ayır
         for sentence in sentences:
             output_path = tts.run_tts(model, "en", sentence, speaker_audio)  # Ses oluştur
+            start_sound(output_path)  # Ses oynat
             #if output_path:
                 #start_sound(output_path)  # Sesi çal
         clear_gpu_memory()  # Belleği temizle

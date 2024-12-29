@@ -2,7 +2,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_ollama.llms import OllamaLLM
 import fasterWhisper_deneme as stt
 import ses_klonlama_2_00 as tts
-from play_soundfile_deneme import play_sound
+from play_soundfile_deneme import start_sound
 import os
 import warnings
 
@@ -17,7 +17,7 @@ speaker_audio = "./ugur_t.mp3"
 
 # Modeli ve şablonu başlangıçta yükle
 model = tts.load_model(model_path, config_path, vocab_path, speaker_path)
-llm_model = OllamaLLM(model="mistral")
+llm_model = OllamaLLM(model="llama3.1")
 
 # Komut şablonunu önceden oluştur
 template = """
@@ -54,16 +54,14 @@ def ses_olustur(text):
         raise FileNotFoundError(f"Speaker audio file bulunamadı: {speaker_audio}")
 
     output_audio_path = tts.run_tts(model, "tr", text, speaker_audio)
-    play_sound(output_audio_path)
+    start_sound(output_audio_path)
 
 def yanit(question):
     chain = prompt | llm_model
     return chain.invoke({"question": question, "commands": commands_dict})
 
-
 transcriber = stt.AudioTranscriber()
 while True:
-    
     try:
         metin = transcriber.process_audio()
         if metin and len(metin) > 0:  # metin listesi boş değilse
@@ -76,6 +74,6 @@ while True:
             if cevap_kismi:
                 print(cevap_kismi)
                 ses_olustur(cevap_kismi)
-                
+
     except Exception as e:
         print(e)

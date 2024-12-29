@@ -3,17 +3,17 @@ from langchain_ollama.llms import OllamaLLM
 
 # Komutları ve açıklamalarını içeren şablon
 template = """
-Aşağıdaki cümlede bir komut var mı analiz et. Eğer komut veya komuta yakın bir cümle varsa komut numarasını döndür.
-Komut cümleleri genelikle soru cümleleri oluyor. buradaki komutları algıla ve komut numarasını döndür.
-Eğer komut yoksa "None" döndür ve cevap kısmını soruda komut olmayan kısmının cevabını döndür. 
-Eğer özel bir soru yoksa cevap kısmını da boş bırak.
+Analyze the following sentence in Turkish. Identify if it contains a command from the command list and provide the following:
+- Command Number: (Return "None" if no command is found.)
+- Answer: If there is no command but a question or statement exists, provide an answer for it.
 
-Komut Listesi: {commands}
-Cümle: {question}
+Command List: {commands}
+Sentence: "{question}"
 
-Dönüş:
-- "Komut Numarası": Tespit edilen komut numarası (eğer yoksa "None").
-- "Cevap": Kullanıcının sorusuna uygun bir cevap.
+Output in English, structured as follows:
+- "Command Number": Detected command number or "None".
+- "Answer": Appropriate response to the user's input.
+
 """
 
 
@@ -32,13 +32,13 @@ commands_dict = {
 prompt = ChatPromptTemplate.from_template(template)
 
 # Modeli tanımla
-model = OllamaLLM(model="aya")
+model = OllamaLLM(model="phi3:mini")
 
 # Zinciri oluştur
 chain = prompt | model
 
 # Kullanıcıdan gelen soruyu analiz et
-result = chain.invoke({"question": "Sence türkiye nasl bir yer? içerisi çok sıcak oldu klimayı açar mısın?", "commands": commands_dict})
+result = chain.invoke({"question": "What do you think Türkiye is like? It's very hot inside, can you turn on the air conditioner?", "commands": commands_dict})
 
 # Sonucu yazdır
 print(result)

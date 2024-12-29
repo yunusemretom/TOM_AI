@@ -8,7 +8,7 @@ import requests
 import tempfile
 import hashlib
 
-import time
+
 CACHE_DIR = "audio_cache"
 os.makedirs(CACHE_DIR, exist_ok=True)  # Klasör yoksa oluştur
 
@@ -78,7 +78,7 @@ def run_tts(model, lang, tts_text, speaker_audio_file):
         temperature=0.8,  # Özelleştirilebilir parametreler
         length_penalty=1.0,
         repetition_penalty=1.2,
-        top_k=40,
+        top_k=50,
         top_p=0.95,
         enable_text_splitting=True
     )
@@ -91,12 +91,16 @@ def run_tts(model, lang, tts_text, speaker_audio_file):
     print(out["wav"].dtype)
     torchaudio.save(out_path, out["wav"], 22050)
 
+    waveform, sample_rate = torchaudio.load(out_path)
+    torchaudio.save("fixed_audio.wav", waveform, sample_rate)
+
+
     print(f"Ses dosyası oluşturuldu ve kaydedildi: {out_path}")
     return out_path
 
 # Ana kod
 if __name__ == "__main__":
-    from play_soundfile_deneme import start_sound
+    
     # Model dosyalarının yolları
     model_path = r"C:\Users\TOM\Documents\Projeler\Ses_fine_tune\xtts-finetune-webui\finetune_models\ready\model.pth"  # Model dosyanızın URL'si
     config_path = r"C:\Users\TOM\Documents\Projeler\Ses_fine_tune\xtts-finetune-webui\finetune_models\ready\config.json"
@@ -105,12 +109,11 @@ if __name__ == "__main__":
     
     # Modeli yükle
     model = load_model(model_path, config_path, vocab_path, speaker_path)
+
+    # TTS kullanarak ses oluştur
+    input_text = "Merhaba, bu bir sesli metin dönüşümüdür."
     while True:
-        
-        # TTS kullanarak ses oluştur
-        input_text = "Merhaba, bu bir sesli metin dönüşümüdür."
         input_text = input("Metni girini: ")
-        a = time.time()
         lang = "tr"  # Türkçe
         speaker_audio = "./ugur_t.mp3"  # Konuşmacı örnek ses dosyası
 
@@ -119,8 +122,3 @@ if __name__ == "__main__":
 
         output_audio_path = run_tts(model, lang, input_text, speaker_audio)
         print(f"Ses dosyası oluşturuldu: {output_audio_path}")
-        b = time.time() - a
-        print("ses oluşturma süresi: ",b) 
-
-        start_sound(output_audio_path)
-
