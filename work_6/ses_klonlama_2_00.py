@@ -115,7 +115,7 @@ if __name__ == "__main__":
     while True:
         input_text = input("Metni girini: ")
         lang = "tr"  # Türkçe
-        speaker_audio = "./ugur_t.mp3"  # Konuşmacı örnek ses dosyası
+        speaker_audio = "./Pi_Hala.mp3"  # Konuşmacı örnek ses dosyası
 
         if not os.path.exists(speaker_audio):
             raise FileNotFoundError(f"Speaker audio file bulunamadı: {speaker_audio}")

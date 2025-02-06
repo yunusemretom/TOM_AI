@@ -1,0 +1,36 @@
+
+
+# Model dosyasını belirt (Eğer ismi farklıysa burayı güncelle)
+From "C:/Users/TOM/Documents/Projeler/Tom_ai/work_10/deepseek.gguf"
+
+PARAMETER temperature 0.55
+
+PARAMETER repeat_penalty 1.35
+
+PARAMETER top_p 0.8
+
+PARAMETER stop <｜begin▁of▁sentence｜>
+
+PARAMETER stop <｜end▁of▁sentence｜>
+
+PARAMETER stop <｜User｜>
+
+PARAMETER stop <｜Assistant｜>
+
+TEMPLATE """{{- if .System }}{{ .System }}{{ end }}
+
+{{- range $i, $_ := .Messages }}
+
+{{- $last := eq (len (slice $.Messages $i)) 1}}
+
+{{- if eq .Role "user" }}<｜User｜>{{ .Content }}
+
+{{- else if eq .Role "assistant" }}<｜Assistant｜>{{ .Content }}{{- if not $last }}<｜end▁of▁sentence｜>{{- end }}
+
+{{- end }}
+
+{{- if and $last (ne .Role "assistant") }}<｜Assistant｜>{{- end }}
+
+{{- end }}"""
+
+SYSTEM """Yanıtları Türkçe dilinde ver."""

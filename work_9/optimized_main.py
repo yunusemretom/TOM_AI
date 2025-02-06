@@ -3,26 +3,25 @@ import warnings
 from pathlib import Path
 from optimized_tts import OptimizedTTSHandler
 from optimized_stt import OptimizedAudioTranscriber
-from optimized_llm import OptimizedLLMHandler
-from play_soundfile_deneme import start_sound
+from transformers import AutoModelForCausalLM, AutoTokenizer
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 def main():
     # Model yolları
     model_paths = {
-        "model": Path("path/to/model.pth"),
-        "config": Path("path/to/config.json"),
-        "vocab": Path("path/to/vocab.json"),
-        "speaker": Path("path/to/speakers_xtts.pth"),
+        "model": Path(r"C:\Users\TOM\Documents\Projeler\Ses_fine_tune\xtts-finetune-webui\finetune_models\ready\model.pth"),
+        "config": Path(r"C:\Users\TOM\Documents\Projeler\Ses_fine_tune\xtts-finetune-webui\finetune_models\ready\config.json"),
+        "vocab": Path(r"C:\Users\TOM\Documents\Projeler\Ses_fine_tune\xtts-finetune-webui\finetune_models\ready\vocab.json"),
+        "speaker": Path(r"C:\Users\TOM\Documents\Projeler\Ses_fine_tune\xtts-finetune-webui\finetune_models\ready\speakers_xtts.pth"),
         "speaker_audio": Path("./ugur_t.mp3")
     }
 
     # Handler'ları başlat
-    stt_handler = OptimizedAudioTranscriber(model_size="medium")
+    stt_handler = OptimizedAudioTranscriber(model_size="large")
     llm_handler = OptimizedLLMHandler()
     tts_handler = OptimizedTTSHandler(
         model_path=str(model_paths["model"]),
-        config_path=str(model_paths["config"]),
+        config_path=str(model_paths["config"]),w
         vocab_path=str(model_paths["vocab"]),
         speaker_path=str(model_paths["speaker"])
     )

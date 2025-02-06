@@ -10,7 +10,7 @@ from typing import List, Optional
 
 # Argüman parser'ı oluştur ve varsayılan değerleri ayarla
 parser = argparse.ArgumentParser()
-parser.add_argument("--model", default="large", choices=["tiny", "base", "small", "medium", "large"])
+parser.add_argument("--model", default="medium", choices=["tiny", "base", "small", "medium", "large"])
 parser.add_argument("--device", default="auto", choices=["auto", "cuda", "cpu"]) 
 parser.add_argument("--energy_threshold", default=1000, type=int)
 parser.add_argument("--record_timeout", default=2, type=float)
