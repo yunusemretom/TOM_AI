@@ -218,7 +218,7 @@ def train_model():
     model.fit(X, labels)
     return vectorizer, model
 
-
+# Alternatif intent önerileri göster
 # İlk model eğitimi
 vectorizer, model = train_model()
 
