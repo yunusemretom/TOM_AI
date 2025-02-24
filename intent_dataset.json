@@ -1,0 +1,85 @@
+{
+    "intent_data": [
+        {
+            "intent": "muzik_cal",
+            "examples": [
+                "Müzik çal",
+                "Bir şarkı başlat",
+                "Şarkı çalsana",
+                "muzik",
+                "şarkı",
+                "muzik",
+                "muzik",
+                "muzik",
+                "hava"
+            ]
+        },
+        {
+            "intent": "hava_durumu",
+            "examples": [
+                "Hava nasıl?",
+                "Bugün hava durumu ne?",
+                "Dışarısı sıcak mı?",
+                "Hava durumu nedir?",
+                "Yağmur yağacak mı?",
+                "Hava durumu raporu",
+                "hava"
+            ]
+        },
+        {
+            "intent": "muzik_değiştir",
+            "examples": [
+                "Müziği değiştir",
+                "Başka bir şarkı çal",
+                "Farklı bir parça aç",
+                "Yeni bir şarkı çal",
+                "Şarkıyı değiştir",
+                "Başka bir müzik aç"
+            ]
+        },
+        {
+            "intent": "sesi_aç",
+            "examples": [
+                "Sesi aç",
+                "Sesi yükselt",
+                "Daha yüksek sesle çal",
+                "Sesi artır",
+                "Sesi biraz daha aç",
+                "Müziği daha yüksek yap"
+            ]
+        },
+        {
+            "intent": "sesi_kıs",
+            "examples": [
+                "Sesi kıs",
+                "Sesi azalt",
+                "Daha düşük sesle çal",
+                "Sesi biraz kıs",
+                "Müziği kıs",
+                "Sesi azalt lütfen"
+            ]
+        },
+        {
+            "intent": "sesi_kapat",
+            "examples": [
+                "Sesi kapat",
+                "Müziği durdur",
+                "Ses yok",
+                "Müziği kapat",
+                "Sesi tamamen kapat",
+                "Ses açma"
+            ]
+        },
+        {
+            "intent": "sohbet_kararı_ver",
+            "examples": [
+                "Sohbet kararı ver",
+                "Karar al",
+                "Ne yapmalıyım?",
+                "Bana bir karar ver",
+                "Hangi seçeneği seçmeliyim?",
+                "Karar vermeme yardım et"
+            ]
+        }
+    ]
+}
