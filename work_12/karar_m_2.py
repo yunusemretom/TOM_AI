@@ -220,7 +220,7 @@ def train_model():
 
 # Alternatif intent önerileri göster
 # İlk model eğitimi
-vectorizer, model = train_model()
+vectorizer, model = train_model(epoch=3)
 
 
 # Kullanıcıdan öğrenme fonksiyonu

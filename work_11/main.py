@@ -1,4 +1,4 @@
-import asyncio
+
 from ollama import Client
 import fasterWhisper_deneme as stt
 import ses_klonlama_2_00 as tts
@@ -7,33 +7,13 @@ import os
 import warnings
 from fuzzywuzzy import fuzz
 import re
-import torch
-import gc
 warnings.filterwarnings("ignore", category=FutureWarning)
-
-# CUDA ayarları ve optimizasyonları
-def setup_cuda():
-    if torch.cuda.is_available():
-        torch.backends.cudnn.benchmark = True
-        torch.backends.cudnn.deterministic = False
-        # Otomatik bellek yönetimi
-        torch.cuda.empty_cache()
-        # Varsayılan CUDA cihazını ayarla
-        torch.cuda.set_device(0)
-        return True
-    return False
-
-# Bellek temizleme fonksiyonu
-def clear_gpu_memory():
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-        gc.collect()
 
 # Komutların bir sözlükte tanımlanması
 COMMANDS = {
-    "Işıkları açar mısın": "turn_on_light()",
-    "Müzik çalar mısın": "play_music()",
-    "Kapıları açar mısın": "open_doors()",
+    "lights_on": "turn_on_light()",
+    "lights_off": "play_music()",
+    "play_music": "open_doors()",
 }
 
 # Komut fonksiyonları simülasyonu
@@ -80,9 +60,6 @@ vocab_path = r"C:\Users\TOM\Documents\Projeler\Ses_fine_tune\xtts-finetune-webui
 speaker_path = r"C:\Users\TOM\Documents\Projeler\Ses_fine_tune\xtts-finetune-webui\finetune_models\ready\speakers_xtts.pth"
 speaker_audio = "./ugur_t.mp3"
 
-# CUDA kurulumunu yap
-has_cuda = setup_cuda()
-
 # Modeli başlangıçta yükle
 model = tts.load_model(model_path, config_path, vocab_path, speaker_path)
 
@@ -93,40 +70,28 @@ def ses_olustur(text):
     if not os.path.exists(speaker_audio):
         raise FileNotFoundError(f"Speaker audio file bulunamadı: {speaker_audio}")
 
-    # GPU belleğini temizle
-    if has_cuda:
-        clear_gpu_memory()
-
     output_audio_path = tts.run_tts(model, "tr", text, speaker_audio)
     start_sound(output_audio_path)
 
 def chat(content):
-    client = Client(host='http://localhost:11434')
-    # GPU kullanımını optimize et
-    gpu_count = 1 if has_cuda else 0
+    client = Client(host='http://localhost:11434')  # Varsayılan host
+    # GPU kullanımını kontrol etmek için
     response = client.chat(
         model='llama3.1',
         messages=[{'role': 'user', 'content': content}],
         options={
-            'num_gpu': gpu_count,
-            'num_thread': os.cpu_count(),  # CPU thread sayısını optimize et
-            'batch_size': 8 if has_cuda else 4  # GPU varsa batch size'ı artır
+            'num_gpu': 0  # GPU kullanımı için 1, CPU için 0
         }
     )
     return response.message['content']
 
-# Transcriber'ı CUDA ile başlat
-transcriber = stt.AudioTranscriber(use_cuda=has_cuda)
+transcriber = stt.AudioTranscriber()
 print("Model hazır, dinlemeye başlıyor...")
 
 Kontrol = False
 
 while True:
     try:
-        # Periyodik bellek temizliği
-        if has_cuda and gc.get_count()[0] > 1000:
-            clear_gpu_memory()
-            
         metin = transcriber.process_audio()
         
         if metin and len(metin) > 0:
@@ -135,6 +100,7 @@ while True:
                 Kontrol = True
     
             if Kontrol:    
+                
                 if "..." in son_metin:
                     continue
                 print("Gelen veri:", son_metin)
@@ -147,12 +113,6 @@ while True:
                     ses_olustur(response)
                 if "görüşürüz" in son_metin:
                     Kontrol=False
-                    # Oturum sonunda belleği temizle
-                    if has_cuda:
-                        clear_gpu_memory()
     
     except Exception as e:
         print(f"Hata: {e}")
-        # Hata durumunda belleği temizle
-        if has_cuda:
-            clear_gpu_memory()

@@ -1,0 +1,13 @@
+*.mp3
+*.wav
+*.ogg
+*.flac
+*.aiff
+*.aif
+*.m4a
+*.wma
+*.aac
+*.mid
+audio_cache/
+datasets/
+music/
