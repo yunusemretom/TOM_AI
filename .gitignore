@@ -8,6 +8,6 @@
 *.wma
 *.aac
 *.mid
-audio_cache/
-datasets/
-music/
+test_old/audio_cache/
+test_old/datasets/
+test_old/music/
