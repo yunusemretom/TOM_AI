@@ -11,3 +11,5 @@
 test_old/audio_cache/
 test_old/datasets/
 test_old/music/
+__pycache__/
+test_old/vosk-model-small-tr-0.3/
