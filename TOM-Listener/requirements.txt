@@ -1,4 +1,5 @@
-faster-whisper==0.10.0
-SpeechRecognition==3.10.0
-sounddevice==0.4.6
-numpy==1.24.3 
+faster-whisper
+SpeechRecognition
+sounddevice
+numpy
+PySide6
