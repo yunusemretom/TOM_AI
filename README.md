@@ -18,13 +18,23 @@ TOM AI
 ## Modüller
 
 ### TOM-Voice
-Metinden sese dönüştürme (Text-to-Speech) işlemlerini gerçekleştiren modül.
+Metinden sese dönüştürme (Text-to-Speech) işlemlerini gerçekleştiren modüller.
+#### Yapılması planlar:
+- [ ] TTS paketi için Coqui AI modeli kullanılacak.
+- [ ] Ses iyileştirmesi için yeniden eğitim yapılacak.
+- [ ] Gerekli optimizasyonlar yapılacak.
 
 ### TOM-Listener
-Sesten metne dönüştürme (Speech-to-Text) işlemlerini gerçekleştiren modül.
+Sesten metne dönüştürme (Speech-to-Text) işlemlerini gerçekleştiren modüller.
+#### Yapılması planlar:
+- [ ] STT için OpenAI Whisper modeli kullanılacak. 
+- [ ] Modeli FasterWhisper ile modeller optimize edilecek.
 
 ### TOM-Bridge
-LLM (Large Language Model) ile iletişimi sağlayan ve yanıtları işleyen modül.
+LLM (Large Language Model) ile iletişimi sağlayan ve yanıtları işleyen modüller.
+
+#### Yapılması planlar:
+- [ ] TTS, STT ve LLM birlikte çalışırken fazla ram kullanılıyor. GPU ve CPU entegrasyonu yapılacak.
 
 ### TOM-UI
 Kullanıcı arayüzü bileşenlerini içeren modüller.
@@ -37,6 +47,7 @@ Kullanıcı arayüzü bileşenlerini içeren modüller.
 
 ### TOM-Utils
 Tüm modüller tarafından ortak kullanılan yardımcı fonksiyonları içeren modüller.
+
 #### M4A ile MP3 Arasındaki Farklar
 
 | **Özellik**              | **M4A**                          | **MP3**                 |
