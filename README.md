@@ -1,3 +1,4 @@
+# TOM AI Asistan
 
 TOM AI, sesli komutları anlayabilen, işleyebilen ve sesli yanıt verebilen bir yapay zeka asistanıdır.
 `Asistan şuan geliştirme aşamasındadır.`
@@ -29,7 +30,6 @@ LLM (Large Language Model) ile iletişimi sağlayan ve yanıtları işleyen mod�
 Kullanıcı arayüzü bileşenlerini içeren modüller.
 
 #### Yapılması planlar:
----
 - [ ] QT Designer ile tasarım yapılacak. 
 - [ ] Audio Wave görselleştirilmesi yapılacak.
 - [ ] Modern arayüz renklendirmesi yapılacak.
