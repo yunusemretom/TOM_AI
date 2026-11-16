@@ -35,8 +35,17 @@ Her modülün yapılacaklar listesi `docs/moduller/` altında:
 
 ## Kurulum
 
-(Kurulum adımları eklenecek)
+Adımlar `requirements.txt` dosyasının başında (torch cu124 + coqui-tts + DeepSpeed, `uv` ile `.venv`).
 
-## Kullanım
+## Ölçüm
 
-(Kullanım talimatları eklenecek)
+```bash
+export CUDA_HOME=/usr/local/cuda-12.4 PATH=/usr/local/cuda-12.4/bin:$PATH PYTHONPATH=.
+XTTS=~/.local/share/tts/tts_models--multilingual--multi-dataset--xtts_v2
+REF=~/Downloads/optimized_model/reference.wav
+.venv/bin/python tools/tts_bench.py --model-dir $XTTS --ref $REF --deepspeed          # yalnız TTS
+.venv/bin/python tools/pipeline_bench.py --llm gemma4:e2b --model-dir $XTTS --ref $REF --deepspeed --out logs/pipeline_bench
+.venv/bin/python -m pytest -q tests
+```
+
+`PYTHONPATH=.` şart: kabuktaki ROS yolu pytest eklentilerini bozuyor.

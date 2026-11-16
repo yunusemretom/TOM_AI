@@ -1,0 +1,18 @@
+# TOM AI ortamı (Linux, NVIDIA sürücü 550 / CUDA 12.4, Python 3.10)
+#
+#   uv venv .venv --python /usr/bin/python3.10
+#   uv pip install --python .venv torch==2.6.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu124
+#   uv pip install --python .venv -r requirements.txt
+#   CUDA_HOME=/usr/local/cuda-12.4 PATH=/usr/local/cuda-12.4/bin:$PATH \
+#       uv pip install --python .venv --no-build-isolation deepspeed==0.20.0
+#
+# DeepSpeed çekirdekleri ilk kullanımda derlenir; CUDA_HOME çalıştırırken de ayarlı olmalı.
+# coqui-tts 0.26+ transformers>=4.57 istiyor ve onunla DeepSpeed XTTS'te çöküyor
+# ('DynamicCache' object has no attribute 'dtype'), bu yüzden 0.25.3 + transformers 4.46.2.
+
+coqui-tts==0.25.3
+transformers==4.46.2
+soundfile
+numpy<2
+ninja
+pytest
