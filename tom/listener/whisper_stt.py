@@ -36,6 +36,19 @@ def tr_lower(s: str) -> str:
     return s.replace("I", "ı").replace("İ", "i").lower()
 
 
+def is_repetitive(text: str, max_ratio: float = 2.4) -> bool:
+    """Whisper'ın döngüye girip aynı öbeği tekrar etmesi ("bir günlük bir günlük ...").
+
+    Tekrarlı metin çok iyi sıkışır; Whisper'ın kendi geri düşüş ölçütü de aynı orandır.
+    """
+    import zlib
+
+    b = text.strip().encode("utf-8")
+    if len(b) < 60:
+        return False
+    return len(b) / len(zlib.compress(b)) > max_ratio
+
+
 def is_hallucination(text: str) -> bool:
     t = tr_lower(text).strip(" .!?…")
     if not t:
@@ -64,9 +77,12 @@ class WhisperSTT:
         self.beam_size = beam_size
 
     def transcribe_full(self, audio: np.ndarray) -> Transcript:
+        seconds = len(audio) / 16000
         segments, info = self.model.transcribe(
             audio.astype(np.float32),
             language=self.language,
+            # Konuşma ~4 token/s; döngüye girerse 448 token boyunca saçmalamasın (gecikme de büyür)
+            max_new_tokens=min(440, int(12 * seconds) + 24),
             beam_size=self.beam_size,
             temperature=0.0,
             condition_on_previous_text=False,
@@ -82,6 +98,7 @@ class WhisperSTT:
     def transcribe(self, audio: np.ndarray) -> str:
         """Boş string: konuşma yok / halüsinasyon."""
         t = self.transcribe_full(audio)
-        if is_hallucination(t.text) or (t.no_speech_prob > 0.6 and t.avg_logprob < -1.0):
+        if (is_hallucination(t.text) or is_repetitive(t.text)
+                or (t.no_speech_prob > 0.6 and t.avg_logprob < -1.0)):
             return ""
         return t.text

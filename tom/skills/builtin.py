@@ -229,8 +229,10 @@ class TimerSkill(Skill):
     description = "zamanlayıcı kurmak ve iptal etmek"
     rules = [
         rule(r"\b(zamanlayıcı|sayaç|alarm)\w*\b.*\b(iptal|kapat|sil|durdur)\w*", "cancel"),
-        rule(r"\b(zamanlayıcı|sayaç|geri sayım)\w*|\b(saniye|dakika|saat)\w*\s+(sonra|içinde)\b.*\b(hatırlat|haber ver|söyle|uyar|uyandır)\w*|"
-             r"\b(hatırlat|haber ver|uyar)\w*\b.*\b(saniye|dakika|saat)\w*\s+sonra\b", "set"),
+        rule(r"\b(zamanlayıcı|sayaç|geri sayım)\w*|\b(saniye|dakika|saat)\w*\s+(sonra|içinde)\w*\b.*\b(hatırlat|haber ver|söyle|uyar|uyandır)\w*|"
+             r"\b(hatırlat|haber ver|uyar)\w*\b.*\b(saniye|dakika|saat)\w*\s+sonra\b|"
+             r"\balarm\w*\b.*\b(kur|oluştur|ayarla|koy)\w*|\b(kur|oluştur|ayarla|koy)\w*\b.*\balarm\w*|"
+             r"\b(saniye|dakika|saat)\w*\s+sonra\w*\b.*\b(alarm|kur|oluştur)\w*", "set"),
     ]
 
     def __init__(self, announce: Callable[[str], None] = print,

@@ -60,8 +60,10 @@ class Persona:
         if capabilities:
             lines.append(
                 "Şu işleri senin yerine ayrı bir sistem anında yapıyor ve sonucu kullanıcıya söylüyor: "
-                + ", ".join(capabilities) + ". Bunlar dışında internete, haberlere ya da cihazlara "
-                "erişimin yok; güncel bilgi uydurma, erişimin olmadığını kısaca söyle."
+                + ", ".join(capabilities) + ". Böyle bir istek sana ulaştıysa sistem onu anlayamamış "
+                "demektir: asla yaptım, kurdum, açtım deme; kullanıcıdan isteği daha açık söylemesini iste. "
+                "Bunlar dışında internete, haberlere ya da cihazlara erişimin yok; güncel bilgi uydurma, "
+                "erişimin olmadığını kısaca söyle."
             )
         lines += self.konusma_kurallari
         return "\n".join(lines)

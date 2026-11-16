@@ -109,6 +109,9 @@ def test_parse_duration(text, secs):
     ("5 dakikalık zamanlayıcı kur", "zamanlayıcı"),
     ("10 dakika sonra çayı kapatmamı hatırlat", "zamanlayıcı"),
     ("Zamanlayıcıyı iptal et", "zamanlayıcı"),
+    ("Bana 5 dakika sonraya alarm oluşturur musun?", "zamanlayıcı"),
+    ("On dakikalık bir alarm kur", "zamanlayıcı"),
+    ("Alarmı iptal et", "zamanlayıcı"),
     ("Işıkları açar mısın?", "cihaz"),
     ("Lambayı kapat", "cihaz"),
     ("Klimayı aç", "cihaz"),
@@ -248,3 +251,15 @@ def test_persona_prompt(tmp_path):
 def test_example_persona_loads():
     p = Persona.load()
     assert p.asistan_adi == "TOM" and p.konusma_kurallari
+
+
+def test_alarm_with_duration_sets_timer():
+    r, _, _ = make_router()
+    res = r.route("Bana 5 dakika sonraya alarm oluşturur musun?").results[0][1]
+    assert res.say == "Tamam, beş dakika sonra haber vereceğim."
+    assert r.route("Alarmı iptal et").results[0][1].say == "Zamanlayıcıyı iptal ettim."
+
+
+def test_prompt_forbids_claiming_actions():
+    s = Persona().system_prompt(NOW, ["zamanlayıcı kurmak"])
+    assert "asla yaptım, kurdum, açtım deme" in s
