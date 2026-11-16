@@ -106,7 +106,8 @@ class Assistant:
                             f"söylendi, tekrar etme: {' '.join(said)})"}
             tm = respond(stream_chat(msgs, self.llm_model, options=self.llm_options),
                          self.tts, play, SentenceSplitter())
-            reply = " ".join(tm.text.split())
+            # Geçmişe söylenen cümleler girer (elenen kalıp kapanışlar girmez, model onları görüp tekrarlamasın)
+            reply = " ".join(tm.sentences)
             print(f"🤖 TOM: {reply}", flush=True)
             said.append(reply)
             log.timings = tm

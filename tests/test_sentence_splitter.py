@@ -55,3 +55,18 @@ def test_strips_markdown_and_emoji():
 def test_flush_returns_unterminated_tail():
     assert feed_all(["Sonu noktasız"]) == ["Sonu noktasız"]
     assert feed_all(["   "]) == []
+
+
+def test_generic_closers_are_dropped():
+    pieces = ["Sen bu işi halledersin. ", "Nasıl yardımcı olabilirim? ", "Başka bir sorun var mı?"]
+    assert feed_all(pieces, first_min_chars=999) == ["Sen bu işi halledersin."]
+
+
+def test_closer_filter_keeps_real_sentences():
+    from tom.brain.sentence_splitter import is_filler_closer
+
+    assert is_filler_closer("Peki, sana nasıl yardımcı olabilirim?")
+    assert is_filler_closer("Senin için yapabileceğim başka bir şey var mı?")
+    assert not is_filler_closer("Sana sınavda nasıl yardımcı olabilirim, konuları mı tekrar edelim?")
+    assert not is_filler_closer("Bu konuda nasıl yardımcı olabileceğimi düşündüm.")
+    assert feed_all(["Nasıl yardımcı olabilirim?"], drop_closers=False) == ["Nasıl yardımcı olabilirim?"]

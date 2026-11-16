@@ -19,6 +19,15 @@ _EMOJI = re.compile(
 )
 _WS = re.compile(r"[ \t]+")
 
+# Küçük modellerin istemi dinlemeyip her cevaba eklediği kalıp kapanışlar ("Nasıl yardımcı olabilirim?")
+_CLOSER = re.compile(
+    r"^(peki |o zaman |şimdi )?(sana |size )?(başka |bugün |başka bir konuda )?"
+    r"(nasıl|ne konuda|hangi konuda) (sana |size )?(yardımcı|destek) ol(abilirim|ayım|abilir miyim)$"
+    r"|^(senin için |sana )?yapabileceğim (başka )?bir şey var mı$"
+    r"|^(sana )?yardımcı olabileceğim başka bir (şey|konu) var mı$"
+    r"|^başka (bir )?(sorun|sorunuz|sorusu|isteğin|bir şey|soru) var mı$"
+)
+
 
 def _clean(text: str) -> str:
     text = _EMOJI.sub("", text)
@@ -26,10 +35,17 @@ def _clean(text: str) -> str:
     return _WS.sub(" ", text).strip()
 
 
+def is_filler_closer(sentence: str) -> bool:
+    s = sentence.replace("I", "ı").replace("İ", "i").lower()
+    s = re.sub(r"[^\w\s]", " ", s)
+    return bool(_CLOSER.match(" ".join(s.split())))
+
+
 class SentenceSplitter:
-    def __init__(self, first_min_chars: int = 20, max_chars: int = 200):
+    def __init__(self, first_min_chars: int = 20, max_chars: int = 200, drop_closers: bool = True):
         self.first_min_chars = first_min_chars
         self.max_chars = max_chars
+        self.drop_closers = drop_closers
         self.buf = ""
         self.emitted = 0
 
@@ -54,6 +70,8 @@ class SentenceSplitter:
         for line in chunk.split("\n"):
             for part in self._limit(_clean(line)):
                 if part and any(ch.isalnum() for ch in part):
+                    if self.drop_closers and is_filler_closer(part):
+                        continue
                     out.append(part)
         self.emitted += len(out)
         return out
