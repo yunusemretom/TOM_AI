@@ -17,6 +17,7 @@ import numpy as np
 import torch
 
 from tom.voice.speaker_cache import SpeakerLatents, cache_key, load_or_compute
+from tom.voice.text_prep import tts_text
 
 
 class XttsEngine:
@@ -127,7 +128,7 @@ class XttsEngine:
         assert self.latents is not None, "önce set_voice() çağır"
         with torch.inference_mode():
             for chunk in self.model.inference_stream(
-                text,
+                tts_text(text),
                 language or self.language,
                 self.latents.gpt_cond_latent,
                 self.latents.speaker_embedding,
@@ -142,7 +143,7 @@ class XttsEngine:
         assert self.latents is not None, "önce set_voice() çağır"
         with torch.inference_mode():
             out = self.model.inference(
-                text,
+                tts_text(text),
                 language or self.language,
                 self.latents.gpt_cond_latent,
                 self.latents.speaker_embedding,

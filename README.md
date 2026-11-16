@@ -46,8 +46,13 @@ PYTHONPATH=. .venv/bin/python -m tom --input-wav soru.wav --output-wav cevap.wav
 ```
 
 Asistan konuşurken mikrofon dinlenmez (yankı iptali yok). Kulaklıkla `--barge-in` araya girmeye izin verir.
-Varsayılanlar: XTTS `~/.local/share/tts/...xtts_v2`, klon referansı `~/Downloads/optimized_model/reference.wav`
-(`--xtts`, `--ref` ile değişir), STT `large-v3-turbo` (GPU, int8), LLM `gemma4:e2b`.
+Varsayılanlar: XTTS `models/xtts_ince_test1` (fine-tune edilmiş), klon referansı `models/voices/ugur/ref_{1,2,3}.wav`
+(EQ ile açılmış; filtre `filtre.txt` içinde). Bunlar yoksa temel XTTS (`~/.local/share/tts/...xtts_v2`) ve
+`~/Downloads/optimized_model/reference.wav` kullanılır. `--xtts`, `--ref` ile değişir. STT `large-v3-turbo`
+(GPU, int8), LLM `gemma4:e2b`.
+
+TTS'e giden metnin sonundaki nokta kaldırılır (`tom/voice/text_prep.py`): XTTS noktada hemen durmayıp
+1 sn'ye varan fazladan ses üretiyordu.
 
 ## Ölçüm
 

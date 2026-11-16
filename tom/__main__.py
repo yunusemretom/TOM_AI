@@ -14,8 +14,14 @@ from pathlib import Path
 
 import numpy as np
 
-DEFAULT_XTTS = "~/.local/share/tts/tts_models--multilingual--multi-dataset--xtts_v2"
-DEFAULT_REF = "~/Downloads/optimized_model/reference.wav"
+BASE_XTTS = "~/.local/share/tts/tts_models--multilingual--multi-dataset--xtts_v2"
+BASE_REF = ["~/Downloads/optimized_model/reference.wav"]
+# Fine-tune edilmiş model ve klon sesi (git dışı, models/ altında); yoksa temel XTTS'e dönülür
+_ROOT = Path(__file__).resolve().parent.parent
+TUNED_XTTS = str(_ROOT / "models/xtts_ince_test1")
+TUNED_REF = [str(_ROOT / f"models/voices/ugur/ref_{i}.wav") for i in (1, 2, 3)]
+DEFAULT_XTTS = TUNED_XTTS if Path(TUNED_XTTS, "model.pth").exists() else BASE_XTTS
+DEFAULT_REF = TUNED_REF if all(Path(p).exists() for p in TUNED_REF) else BASE_REF
 
 
 def file_frames(path: str, frame: int = 512):
@@ -63,7 +69,7 @@ def main():
     ap = argparse.ArgumentParser(prog="tom")
     ap.add_argument("--llm", default="gemma4:e2b")
     ap.add_argument("--xtts", default=DEFAULT_XTTS, help="XTTS model klasörü (model.pth, config.json, vocab.json)")
-    ap.add_argument("--ref", default=[DEFAULT_REF], nargs="+", help="Klon ses referansı")
+    ap.add_argument("--ref", default=DEFAULT_REF, nargs="+", help="Klon ses referansı")
     ap.add_argument("--persona", default=None, help="Kişilik dosyası (varsayılan config/kisilik.yaml)")
     ap.add_argument("--stt-model", default="large-v3-turbo")
     ap.add_argument("--deepspeed", action="store_true")

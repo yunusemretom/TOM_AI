@@ -10,11 +10,13 @@ from pathlib import Path
 
 import numpy as np
 
+from tom.voice.text_prep import TEXT_PREP_VERSION
+
 
 class PhraseCache:
     def __init__(self, tts, cache_dir: Path | str = "models/voices"):
         self.tts = tts
-        self.path = Path(cache_dir) / f"{tts.voice_key}-phrases.npz"
+        self.path = Path(cache_dir) / f"{tts.voice_key}-phrases-v{TEXT_PREP_VERSION}.npz"
         self.audio: dict[str, np.ndarray] = {}
 
     def warm(self, phrases: list[str]) -> int:
