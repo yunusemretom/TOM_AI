@@ -7,10 +7,11 @@ asistan_adi: TOM
 kullanici:
   # TOM sana nasıl hitap etsin? Boş bırakılırsa isimsiz, samimi "sen" diliyle konuşur.
   hitap: ""
-  # TOM'un senin hakkında bilmesi gerekenler (kısa maddeler; her biri sistem istemine girer).
+  # TOM'un senin hakkında bilmesi gerekenler. Üçüncü şahısla yaz ("okuyorum" değil "okuyor"),
+  # yoksa LLM bunları kendisi hakkında sanabilir.
   hakkinda: []
-  #  - "Bilgisayar mühendisliği okuyorum."
-  #  - "Sabahları kahve içerim, çay sevmem."
+  #  - "Bilgisayar mühendisliği okuyor."
+  #  - "Sabahları kahve içer, çay sevmez."
 
 # Hava durumu için şehir. Boşsa hava durumu sorusunda şehir sorulur.
 konum:
