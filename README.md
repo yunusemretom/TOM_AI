@@ -1,63 +1,38 @@
 # TOM AI Asistan
 
-TOM AI, sesli komutları anlayabilen, işleyebilen ve sesli yanıt verebilen bir yapay zeka asistanıdır.
-`Asistan şuan geliştirme aşamasındadır.`
-## Proje Yapısı
+TOM AI, yerelde çalışan, Türkçe konuşan ve anlık yanıt veren kişisel bir sesli asistandır.
+`Asistan şu an geliştirme aşamasındadır.` Hedef platform: Linux.
+
+## Proje yapısı
 
 ```
-TOM AI
-├── README.md
-├── TOM-Voice/              # Metinden sese (TTS) modülü
-├── TOM-Listener/           # Sesten metne (STT) modülü
-├── TOM-Bridge/             # LLM ile geri dönüş yapan kısım
-├── TOM-UI/                 # Arayüz bileşenleri
-├── TOM-Utils/              # Ortak kullanılacak yardımcı fonksiyonlar
-└── docs/                   # Dökümantasyon
+TOM_AI/
+├── tom/                 # Asıl kod (Python paketi)
+│   ├── audio/           # Mikrofon girişi, hoparlör çıkışı, VAD
+│   ├── listener/        # Sesten metne (STT)
+│   ├── brain/           # LLM, komut algılama, sohbet bağlamı
+│   ├── voice/           # Metinden sese (TTS), ses klonu önbelleği
+│   └── pipeline/        # Hepsini birbirine bağlayan akış (dinle → düşün → konuş)
+├── tools/               # Ölçüm ve teşhis scriptleri (CUDA testi vb.)
+├── models/              # Model ağırlıkları (git dışı, bkz. models/README.md)
+├── docs/
+│   ├── moduller/        # Modül başına yapılacaklar listeleri
+│   └── ses-formatlari.md
+└── archive/             # Eski denemeler; yalnızca başvuru için, yeni kod buraya yazılmaz
+    ├── denemeler/       # Eski tests_old (work_1 … work_12)
+    ├── tom_listener_v0/ # İlk STT + PySide arayüz denemesi
+    └── tom_main_llm_test_v0.py
 ```
+
+En güncel çalışan prototip: `archive/denemeler/work_8/main.py`
+(faster-whisper + Ollama + XTTS v2 klon ses).
 
 ## Modüller
 
-### TOM-Voice
-Metinden sese dönüştürme (Text-to-Speech) işlemlerini gerçekleştiren modüller.
-#### Yapılması planlar:
-- [ ] TTS paketi için Coqui AI modeli kullanılacak.
-- [ ] Ses iyileştirmesi için yeniden eğitim yapılacak.
-- [ ] Gerekli optimizasyonlar yapılacak.
+Her modülün yapılacaklar listesi `docs/moduller/` altında:
+[brain](docs/moduller/brain.md) · [voice](docs/moduller/voice.md) ·
+[pipeline](docs/moduller/pipeline.md) · [ui](docs/moduller/ui.md) · [utils](docs/moduller/utils.md)
 
-### TOM-Listener
-Sesten metne dönüştürme (Speech-to-Text) işlemlerini gerçekleştiren modüller.
-#### Yapılması planlar:
-- [ ] STT için OpenAI Whisper modeli kullanılacak. 
-- [ ] Modeli FasterWhisper ile modeller optimize edilecek.
-
-### TOM-Bridge
-LLM (Large Language Model) ile iletişimi sağlayan ve yanıtları işleyen modüller.
-
-#### Yapılması planlar:
-- [ ] TTS, STT ve LLM birlikte çalışırken fazla ram kullanılıyor. GPU ve CPU entegrasyonu yapılacak.
-
-### TOM-UI
-Kullanıcı arayüzü bileşenlerini içeren modüller.
-
-#### Yapılması planlar:
-- [ ] QT Designer ile tasarım yapılacak. 
-- [ ] Audio Wave görselleştirilmesi yapılacak.
-- [ ] Modern arayüz renklendirmesi yapılacak.
-- [ ] Uygulamanın kilitlenmelerini önlemek için gerekli ayarlar yapılacak.
-
-### TOM-Utils
-Tüm modüller tarafından ortak kullanılan yardımcı fonksiyonları içeren modüller.
-
-#### M4A ile MP3 Arasındaki Farklar
-
-| **Özellik**              | **M4A**                          | **MP3**                 |
-| ------------------------ | -------------------------------- | ----------------------- |
-| **Ses Kalitesi**         | Daha iyi (AAC ile)               | Orta, eski algoritmalar |
-| **Dosya Boyutu**         | Daha küçük                       | Daha büyük              |
-| **Kayıpsız Destek**      | ALAC ile mümkün                  | Desteklemez             |
-| **Destekleyen Cihazlar** | Apple cihazlarında daha yaygın   | Her yerde çalışır       |
-| **Sıkıştırma Türü**      | AAC veya ALAC                    | Lossy (Kayıplı)         |
-| **Kullanım Alanı**       | Apple Music, YouTube, Podcastler | Çoğu müzik çalar        |
 ## Kurulum
 
 (Kurulum adımları eklenecek)
@@ -65,11 +40,3 @@ Tüm modüller tarafından ortak kullanılan yardımcı fonksiyonları içeren m
 ## Kullanım
 
 (Kullanım talimatları eklenecek)
-
-## Katkıda Bulunma
-
-(Katkıda bulunma rehberi eklenecek)
-
-## Lisans
-
-(License)[]

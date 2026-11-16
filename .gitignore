@@ -1,3 +1,4 @@
+# Ses dosyaları
 *.mp3
 *.wav
 *.ogg
@@ -8,8 +9,28 @@
 *.wma
 *.aac
 *.mid
-test_old/audio_cache/
-test_old/datasets/
-test_old/music/
+
+# Python
 __pycache__/
-tests_old/vosk-model-small-tr-0.3/
+*.pyc
+.venv*/
+*.egg-info/
+
+# Model ağırlıkları ve büyük veriler (yolları ayar dosyasından okunur)
+models/*
+!models/README.md
+*.pth
+*.pt
+*.onnx
+*.engine
+*.gguf
+
+# Çalışma sırasında üretilenler
+audio_cache/
+logs/
+
+# Arşiv
+archive/denemeler/audio_cache/
+archive/denemeler/datasets/
+archive/denemeler/music/
+archive/denemeler/vosk-model-small-tr-0.3/
