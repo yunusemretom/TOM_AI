@@ -19,6 +19,21 @@ _SENT_END = re.compile(r"[.!?…]['\"”’)»]*$")
 _SOFT_END = re.compile(r"[,;:]['\"”’)»]*$")
 
 
+# Whisper ekleri ayrı kelime verir ("İstanbul" + "'un", "Arif" + "-i"); tek başına noktalama da olabilir
+_SUFFIX = re.compile(r"^(['’]|-\w|[.,!?;:…]+$)")
+
+
+def join_words(texts) -> str:
+    """Kelimeleri boşlukla birleştirir; kesme işaretli ek ve tireli izafet önceki kelimeye yapışır."""
+    out = ""
+    for t in texts:
+        t = t.strip()
+        if not t:
+            continue
+        out += t if (out and _SUFFIX.match(t)) else (" " + t if out else t)
+    return out
+
+
 @dataclass
 class Word:
     text: str
@@ -45,7 +60,7 @@ class Clip:
 
     @property
     def text(self) -> str:
-        return " ".join(w.text.strip() for w in self.words).strip()
+        return join_words(w.text for w in self.words)
 
     @property
     def min_prob(self) -> float:

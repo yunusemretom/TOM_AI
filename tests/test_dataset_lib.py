@@ -100,6 +100,15 @@ def test_split_train_eval_is_deterministic_and_bounded():
     assert len(ev) == 1
 
 
+def test_suffix_tokens_attach_to_previous_word():
+    from tools.finetune.dataset_lib import join_words
+
+    assert join_words([" İstanbul", "'un", " güzel", " Arif", "-i", " Ahval", "."]) == "İstanbul'un güzel Arif-i Ahval."
+    assert join_words(["'tırnak", " başta"]) == "'tırnak başta"
+    w = words([("Müncer", 0, 1), ("'i", 1, 1.2), ("bilmiyorum.", 1.3, 3.5)])
+    assert group_into_clips(w, min_s=3.0, max_s=11.0)[0].text == "Müncer'i bilmiyorum."
+
+
 def test_other_speaker_sentence_breaks_clip():
     from tools.finetune.dataset_lib import merge_units, sentence_units
 
