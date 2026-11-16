@@ -40,16 +40,12 @@ def free_gpu_from_ollama() -> None:
     Ollama modelleri keep_alive süresince (30 dk) GPU'da kalır. TTS ve STT sabit yer ister,
     LLM ise kalan yere sığdığı kadarını GPU'ya alır; bu yüzden LLM en son yüklenmeli.
     """
-    from tom.brain.ollama_client import loaded_models, unload
+    from tom.brain.ollama_client import unload_all
 
-    try:
-        models = loaded_models()
-    except Exception:
-        return  # Ollama kapalıysa sorun LLM ısınmasında anlaşılır biçimde çıkar
-    for m in models:
-        print(f"Ollama'da yüklü kalan {m['name']} boşaltılıyor (GPU'da yer açmak için)…", flush=True)
-        unload(m["name"])
-    if models:
+    names = unload_all()
+    for n in names:
+        print(f"Ollama'da yüklü kalan {n} boşaltıldı (GPU'da yer açmak için).", flush=True)
+    if names:
         time.sleep(1.0)
 
 

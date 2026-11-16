@@ -19,3 +19,6 @@ pytest
 faster-whisper==1.2.1
 silero-vad==6.2.3
 sounddevice==0.5.6
+# Veri seti aracı (konuşmacı ayrımı). 1.1+ torch>=2.7 ister ve torch’u CUDA 13’e yükseltip GPU’yu bozar:
+#   uv pip install --python .venv speechbrain==1.0.3 -c <(printf "torch==2.6.0\ntorchaudio==2.6.0\n")
+speechbrain==1.0.3

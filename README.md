@@ -62,3 +62,19 @@ REF=~/Downloads/optimized_model/reference.wav
 ```
 
 `PYTHONPATH=.` şart: kabuktaki ROS yolu pytest eklentilerini bozuyor.
+
+## XTTS fine-tune (podcast → veri seti → Colab)
+
+1. **Veri seti (yerelde):** podcast bölümlerini bir klasöre koy, hedef konuşmacının 10–30 sn'lik temiz
+   bir örneğini ver (konuk varsa önemli). Hedef: 20–60 dk temiz konuşma.
+   ```bash
+   PYTHONPATH=. .venv/bin/python -m tools.finetune.build_dataset podcastlar/ --ref sunucu_ornek.wav \
+       --out data/xtts_dataset --zip     # müzik varsa: --demucs (uv pip install --python .venv demucs)
+   ```
+   Çıktı: `wavs/`, `metadata_train.csv`, `metadata_eval.csv`, `rapor.json` (atılan klipler ve
+   nedenleri), `gozden_gecir.csv` (dinlenmeye değer şüpheli klipler).
+2. **Eğitim (Colab A100):** `tools/finetune/XTTS_FineTune_Colab.ipynb` dosyasını Colab'da aç,
+   `data/xtts_dataset.zip`'i Drive'da `MyDrive/TOM_AI/` altına yükle, hücreleri sırayla çalıştır.
+   Notebook `make_notebook.py` ile `train_xtts.py` ve `eval_xtts.py`'den üretilir.
+3. **Kullanım:** indirilen `hazir_model` klasörüyle
+   `python -m tom --deepspeed --xtts hazir_model --ref hazir_model/reference.wav`.

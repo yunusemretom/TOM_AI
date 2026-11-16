@@ -71,3 +71,14 @@ def loaded_models(host: str = DEFAULT_HOST) -> list[dict]:
 def unload(model: str, host: str = DEFAULT_HOST) -> None:
     with _post(host, "/api/generate", {"model": model, "keep_alive": 0}):
         pass
+
+
+def unload_all(host: str = DEFAULT_HOST) -> list[str]:
+    """Bellekte kalan tüm modelleri boşaltır (GPU'da yer açmak için). Ollama kapalıysa [] döner."""
+    try:
+        names = [m["name"] for m in loaded_models(host)]
+    except Exception:
+        return []
+    for n in names:
+        unload(n, host)
+    return names
