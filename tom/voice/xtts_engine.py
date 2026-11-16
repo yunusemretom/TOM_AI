@@ -45,6 +45,7 @@ class XttsEngine:
         self.model = None
         self.config = None
         self.latents: SpeakerLatents | None = None
+        self.voice_key: str | None = None  # ses + model kimliği (hazır cümle önbelleği için)
 
     # ---- yükleme -------------------------------------------------------
     def load(self) -> None:
@@ -100,6 +101,7 @@ class XttsEngine:
             ref_paths = [ref_paths]
         name = name or Path(ref_paths[0]).stem
         key = cache_key(ref_paths, self._latent_params(), self._model_id())
+        self.voice_key = f"{name}-{key}"
         self.latents, hit = load_or_compute(
             self.cache_dir, name, key, lambda: self.compute_latents(ref_paths)
         )

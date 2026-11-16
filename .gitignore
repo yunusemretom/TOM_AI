@@ -34,3 +34,6 @@ archive/denemeler/audio_cache/
 archive/denemeler/datasets/
 archive/denemeler/music/
 archive/denemeler/vosk-model-small-tr-0.3/
+
+# Kişisel ayarlar
+config/kisilik.yaml

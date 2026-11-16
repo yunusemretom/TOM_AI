@@ -1,12 +1,13 @@
-"""TOM sesli asistan döngüsü: mikrofon → VAD → STT → LLM → TTS → hoparlör.
+"""TOM sesli asistan döngüsü: mikrofon → VAD → STT → (hızlı komut | LLM) → TTS → hoparlör.
 
 Şimdilik yarı çift yönlü (half-duplex): asistan konuşurken mikrofon dinlenmez, çünkü
 hoparlörden çıkan ses mikrofona geri girer (yankı iptali yok). Kulaklıkla
-`barge_in=True` verilirse kullanıcı konuşmaya başlayınca asistan susar.
+`barge_in` verilirse kullanıcı konuşmaya başlayınca asistan susar.
 """
 
 from __future__ import annotations
 
+import queue
 import time
 from dataclasses import dataclass, field
 from typing import Callable, Iterable
@@ -15,14 +16,9 @@ import numpy as np
 
 from tom.audio.vad import EndpointConfig, Endpointer
 from tom.brain.ollama_client import stream_chat
+from tom.brain.persona import Persona
 from tom.brain.sentence_splitter import SentenceSplitter
 from tom.pipeline.respond import ResponseTimings, respond
-
-SYSTEM_PROMPT = (
-    "Sen TOM adında, Türkçe konuşan kişisel bir sesli asistansın. Cevapların sesli okunacak: "
-    "kısa ve doğal konuş, en fazla 2-3 cümle. Markdown, liste, emoji ve kısaltma kullanma; "
-    "sayıları yazıyla yaz."
-)
 
 
 @dataclass
@@ -30,14 +26,23 @@ class TurnLog:
     user: str
     stt_s: float
     timings: ResponseTimings | None
+    skills: list[str] = field(default_factory=list)
+    fast_first_audio_s: float | None = None  # komut cevabının ilk sesi (STT sonrasından)
 
     def line(self) -> str:
+        parts = [f"STT {self.stt_s*1000:.0f} ms"]
+        if not self.user:
+            return parts[0] + " (boş/halüsinasyon, yanıt yok)"
+        if self.skills:
+            parts.append(f"komut: {', '.join(self.skills)} → ilk ses "
+                         f"{self.stt_s + self.fast_first_audio_s:.2f} s")
         t = self.timings
-        if t is None:
-            return f"STT {self.stt_s*1000:.0f} ms (boş/halüsinasyon, yanıt yok)"
-        return (f"STT {self.stt_s*1000:.0f} ms | LLM ilk token {t.llm_first_token:.2f} s | "
-                f"ilk ses {self.stt_s + t.first_audio:.2f} s (VAD sonundan) | "
-                f"ses {t.audio_seconds:.1f} s, takılma {t.stall_seconds:.2f} s")
+        if t is not None:
+            first = t.first_audio if t.first_audio is not None else float("nan")
+            parts.append(f"LLM ilk token {t.llm_first_token or 0:.2f} s | LLM ilk ses "
+                         f"{self.stt_s + (self.fast_first_audio_s or 0) + first:.2f} s")
+            parts.append(f"ses {t.audio_seconds:.1f} s, takılma {t.stall_seconds:.2f} s")
+        return " | ".join(parts) + " (VAD sonundan)"
 
 
 @dataclass
@@ -46,11 +51,67 @@ class Assistant:
     vad: Callable[[np.ndarray], float]
     tts: object  # XttsEngine
     llm_model: str
-    system_prompt: str = SYSTEM_PROMPT
+    persona: Persona = field(default_factory=Persona)
+    router: object | None = None  # tom.skills.router.Router
+    phrases: object | None = None  # tom.voice.phrase_cache.PhraseCache
     vad_cfg: EndpointConfig = field(default_factory=EndpointConfig)
-    max_history: int = 6  # son N mesaj (kullanıcı+asistan)
+    max_history: int = 8  # son N mesaj (kullanıcı+asistan)
     llm_options: dict = field(default_factory=lambda: {"num_ctx": 2048, "temperature": 0.7})
     history: list[dict] = field(default_factory=list)
+
+    def __post_init__(self):
+        self.inbox: queue.Queue[str] = queue.Queue()  # zamanlayıcı gibi kendiliğinden söylenecekler
+
+    def notify(self, text: str) -> None:
+        self.inbox.put(text)
+
+    def system_prompt(self) -> str:
+        caps = self.router.capabilities() if self.router else None
+        return self.persona.system_prompt(capabilities=caps)
+
+    def speak(self, text: str, play: Callable[[np.ndarray], None]) -> None:
+        audio = self.phrases.get(text) if self.phrases else None
+        if audio is not None:
+            play(audio)
+            return
+        for chunk in self.tts.stream(text):
+            play(chunk)
+
+    def respond_text(self, text: str, play: Callable[[np.ndarray], None], stt_s: float = 0.0) -> TurnLog:
+        print(f"\n🗣  Sen: {text}", flush=True)
+        log = TurnLog(text, stt_s, None)
+        rest, said = text, []
+        t0 = time.perf_counter()
+        if self.router:
+            routed = self.router.route(text)
+            rest = routed.rest
+            for name, res in routed.results:
+                log.skills.append(name)
+                print(f"⚡ TOM ({name}): {res.say}", flush=True)
+                first = [True]
+
+                def play_first(a, first=first):
+                    if first[0] and log.fast_first_audio_s is None:
+                        log.fast_first_audio_s = time.perf_counter() - t0
+                    first[0] = False
+                    play(a)
+
+                self.speak(res.say, play_first)
+                said.append(res.say)
+        self.history.append({"role": "user", "content": text})
+        if rest:
+            msgs = [{"role": "system", "content": self.system_prompt()}] + self.history[-self.max_history:]
+            if said:  # LLM, komutların zaten yapıldığını bilsin
+                msgs[-1] = {"role": "user", "content": f"{rest}\n(Not: şu komutlar zaten yapıldı ve "
+                            f"söylendi, tekrar etme: {' '.join(said)})"}
+            tm = respond(stream_chat(msgs, self.llm_model, options=self.llm_options),
+                         self.tts, play, SentenceSplitter())
+            reply = " ".join(tm.text.split())
+            print(f"🤖 TOM: {reply}", flush=True)
+            said.append(reply)
+            log.timings = tm
+        self.history.append({"role": "assistant", "content": " ".join(said)})
+        return log
 
     def answer(self, audio: np.ndarray, play: Callable[[np.ndarray], None]) -> TurnLog:
         t = time.perf_counter()
@@ -58,15 +119,7 @@ class Assistant:
         stt_s = time.perf_counter() - t
         if not text:
             return TurnLog("", stt_s, None)
-        print(f"\n🗣  Sen: {text}", flush=True)
-        self.history.append({"role": "user", "content": text})
-        msgs = [{"role": "system", "content": self.system_prompt}] + self.history[-self.max_history:]
-        tm = respond(stream_chat(msgs, self.llm_model, options=self.llm_options),
-                     self.tts, play, SentenceSplitter())
-        reply = " ".join(tm.text.split())
-        print(f"🤖 TOM: {reply}", flush=True)
-        self.history.append({"role": "assistant", "content": reply})
-        return TurnLog(text, stt_s, tm)
+        return self.respond_text(text, play, stt_s)
 
     def run(
         self,
@@ -90,6 +143,12 @@ class Assistant:
                 was_speaking = False
                 ep.reset()
                 on_resume()
+                continue
+            if not speaking and not ep.speaking and not self.inbox.empty():
+                msg = self.inbox.get_nowait()
+                print(f"\n⏰ TOM: {msg}", flush=True)
+                self.speak(msg, play)
+                was_speaking = True
                 continue
             for ev in ep.feed(fr):
                 if ev.kind == "start":

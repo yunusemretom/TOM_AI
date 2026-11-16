@@ -74,3 +74,48 @@ def test_mic_is_ignored_while_assistant_speaks(monkeypatch):
     assert len(logs) == 1  # konuşurken gelen 40 kare yok sayıldı
     # 1: asistanın sesi bitince; 2: cevap üretilirken biriken kareler atılsın diye
     assert resumed == [1, 1]
+
+
+class FakePhrases:
+    def __init__(self, known):
+        self.known = known
+
+    def get(self, text):
+        return np.ones(7, dtype=np.float32) if text in self.known else None
+
+
+def test_command_is_answered_without_llm_and_uses_cached_audio(monkeypatch):
+    from tom.skills.builtin import DeviceSkill
+    from tom.skills.router import Router
+
+    bot, prompts = make(monkeypatch, ["Işıkları aç"], [])
+    bot.router = Router([DeviceSkill()])
+    bot.phrases = FakePhrases({"Işıklar için henüz bir bağlantım yok."})
+    played = []
+    logs = bot.run(frames((0.9, 20), (0.0, 15)), played.append)
+    assert prompts == []  # LLM'e gidilmedi
+    assert logs[0].skills == ["cihaz"] and logs[0].timings is None
+    assert len(played) == 1 and len(played[0]) == 7  # hazır ses çalındı
+    assert bot.history[-1] == {"role": "assistant", "content": "Işıklar için henüz bir bağlantım yok."}
+
+
+def test_mixed_sentence_runs_command_then_llm_with_note(monkeypatch):
+    from tom.skills.builtin import DeviceSkill
+    from tom.skills.router import Router
+
+    bot, prompts = make(monkeypatch, [], ["İşte bir fıkra."])
+    bot.router = Router([DeviceSkill()])
+    log = bot.respond_text("Işıkları aç ve bana bir fıkra anlat", lambda a: None)
+    assert log.skills == ["cihaz"] and log.timings is not None
+    last = prompts[0][-1]["content"]
+    assert last.startswith("bana bir fıkra anlat") and "zaten yapıldı" in last
+    assert "ışık, klima" in prompts[0][0]["content"]  # sistem istemi yetenekleri biliyor
+
+
+def test_inbox_message_is_spoken_when_idle(monkeypatch):
+    bot, _ = make(monkeypatch, [], [])
+    bot.notify("Zaman doldu!")
+    spoken = []
+    monkeypatch.setattr(bot, "speak", lambda text, play: spoken.append(text))
+    bot.run(frames((0.0, 5)), lambda a: None)
+    assert spoken == ["Zaman doldu!"]
