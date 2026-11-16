@@ -16,3 +16,6 @@ soundfile
 numpy<2
 ninja
 pytest
+faster-whisper==1.2.1
+silero-vad==6.2.3
+sounddevice==0.5.6

@@ -37,6 +37,18 @@ Her modülün yapılacaklar listesi `docs/moduller/` altında:
 
 Adımlar `requirements.txt` dosyasının başında (torch cu124 + coqui-tts + DeepSpeed, `uv` ile `.venv`).
 
+## Kullanım
+
+```bash
+PYTHONPATH=. .venv/bin/python -m tom --deepspeed                 # mikrofon + hoparlör
+PYTHONPATH=. .venv/bin/python -m tom --deepspeed --llm gemma4:e4b --silence-ms 400
+PYTHONPATH=. .venv/bin/python -m tom --input-wav soru.wav --output-wav cevap.wav   # deneme
+```
+
+Asistan konuşurken mikrofon dinlenmez (yankı iptali yok). Kulaklıkla `--barge-in` araya girmeye izin verir.
+Varsayılanlar: XTTS `~/.local/share/tts/...xtts_v2`, klon referansı `~/Downloads/optimized_model/reference.wav`
+(`--xtts`, `--ref` ile değişir), STT `large-v3-turbo` (GPU, int8), LLM `gemma4:e2b`.
+
 ## Ölçüm
 
 ```bash
@@ -45,6 +57,7 @@ XTTS=~/.local/share/tts/tts_models--multilingual--multi-dataset--xtts_v2
 REF=~/Downloads/optimized_model/reference.wav
 .venv/bin/python tools/tts_bench.py --model-dir $XTTS --ref $REF --deepspeed          # yalnız TTS
 .venv/bin/python tools/pipeline_bench.py --llm gemma4:e2b --model-dir $XTTS --ref $REF --deepspeed --out logs/pipeline_bench
+.venv/bin/python tools/stt_bench.py --data ~/Documents/Projeler/Ses_Klon/xtts-finetune-webui/finetune_models/dataset
 .venv/bin/python -m pytest -q tests
 ```
 
