@@ -34,6 +34,35 @@ def file_frames(path: str, frame: int = 512):
         yield x[k : k + frame]
 
 
+def free_gpu_from_ollama() -> None:
+    """Önceki oturumdan Ollama'da yüklü kalan modelleri boşaltır.
+
+    Ollama modelleri keep_alive süresince (30 dk) GPU'da kalır. TTS ve STT sabit yer ister,
+    LLM ise kalan yere sığdığı kadarını GPU'ya alır; bu yüzden LLM en son yüklenmeli.
+    """
+    from tom.brain.ollama_client import loaded_models, unload
+
+    try:
+        models = loaded_models()
+    except Exception:
+        return  # Ollama kapalıysa sorun LLM ısınmasında anlaşılır biçimde çıkar
+    for m in models:
+        print(f"Ollama'da yüklü kalan {m['name']} boşaltılıyor (GPU'da yer açmak için)…", flush=True)
+        unload(m["name"])
+    if models:
+        time.sleep(1.0)
+
+
+def gpu_free_mib() -> int | None:
+    try:
+        import torch
+
+        free, _ = torch.cuda.mem_get_info()
+        return free // 2**20
+    except Exception:
+        return None
+
+
 def main():
     ap = argparse.ArgumentParser(prog="tom")
     ap.add_argument("--llm", default="gemma4:e2b")
@@ -65,6 +94,7 @@ def main():
 
     t = time.perf_counter()
     persona = Persona.load(Path(args.persona) if args.persona else None)
+    free_gpu_from_ollama()
     print("XTTS yükleniyor…", flush=True)
     tts = XttsEngine(Path(args.xtts).expanduser(), use_deepspeed=args.deepspeed)
     tts.load()
@@ -75,6 +105,15 @@ def main():
     if not args.text:
         from tom.listener.whisper_stt import WhisperSTT
 
+        free = gpu_free_mib()
+        if free is not None and free < 1100:
+            import subprocess
+
+            apps = subprocess.run(["nvidia-smi", "--query-compute-apps=pid,process_name,used_memory",
+                                   "--format=csv,noheader"], capture_output=True, text=True).stdout.strip()
+            raise SystemExit(
+                f"GPU'da Whisper için yer yok ({free} MiB boş, ~1100 gerekli). GPU'yu kullanan süreçler:\n"
+                f"{apps or '(listelenemedi)'}\nBunları kapatıp yeniden dene.")
         print("Whisper yükleniyor…", flush=True)
         stt = WhisperSTT(args.stt_model)
         stt.transcribe(np.zeros(16000, dtype=np.float32))
@@ -83,6 +122,11 @@ def main():
                     vad_cfg=EndpointConfig(min_silence_ms=args.silence_ms))
     if not args.no_skills:
         bot.router = Router(default_skills(city=persona.sehir, announce=bot.notify))
+        import threading
+
+        for s in bot.router.skills:
+            if hasattr(s, "warm"):
+                threading.Thread(target=s.warm, daemon=True).start()
         bot.phrases = PhraseCache(tts)
         n = bot.phrases.warm(bot.router.fixed_phrases())
         print(f"Hazır cümle sesleri: {len(bot.phrases.audio)} ({n} yeni üretildi)", flush=True)

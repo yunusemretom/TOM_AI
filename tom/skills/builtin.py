@@ -104,6 +104,14 @@ class WeatherSkill(Skill):
         self._cache = (time.monotonic(), d)
         return d
 
+    def warm(self) -> None:
+        """Açılışta arka planda çağrılır: ilk soruda konum arama + tahmin beklenmesin."""
+        if self.city:
+            try:
+                self._forecast()
+            except Exception:
+                pass
+
     def run(self, action, m, clause):
         if not self.city:
             return SkillResult("Hangi şehrin havasına bakayım? Şehrini kişilik dosyasına yazarsan "
