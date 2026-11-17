@@ -49,10 +49,33 @@ Asistan konuşurken mikrofon dinlenmez (yankı iptali yok). Kulaklıkla `--barge
 Varsayılanlar: XTTS `models/xtts_ince_test1` (fine-tune edilmiş), klon referansı `models/voices/ugur/ref_{1,2,3}.wav`
 (EQ ile açılmış; filtre `filtre.txt` içinde). Bunlar yoksa temel XTTS (`~/.local/share/tts/...xtts_v2`) ve
 `~/Downloads/optimized_model/reference.wav` kullanılır. `--xtts`, `--ref` ile değişir. STT `large-v3-turbo`
-(GPU, int8), LLM `gemma4:e2b`.
+(GPU, int8), LLM `gemma4:e4b` (28 katman GPU'da; `--llm gemma4:e2b` daha hızlı).
 
 TTS'e giden metnin sonundaki nokta kaldırılır (`tom/voice/text_prep.py`): XTTS noktada hemen durmayıp
 1 sn'ye varan fazladan ses üretiyordu.
+
+## Araçlar (internet, hatırlatıcı, hafıza…)
+
+LLM (varsayılan `gemma4:e4b`, 6 GB kartta 28 katmanı GPU'da) gerektiğinde araç çağırır; araç çalışırken
+"Bir bakayım." der. Hızlı komutlar (saat, zamanlayıcı, müzik, ses, kendi şehrinin havası) LLM'e hiç gitmez.
+
+| Araç | Ne yapar |
+|---|---|
+| `web_ara`, `web_oku` | İnternette arar (ddgs, anahtarsız), en iyi 3 sayfanın metnini okur |
+| `haberler` | Son haber başlıkları |
+| `hava_tahmini` | Herhangi bir şehir, 7 güne kadar (Open-Meteo) |
+| `doviz`, `hesapla` | Güncel kur (open.er-api.com), güvenli hesap makinesi |
+| `hatirlatici_kur` / `_listele` / `_sil` | Saatli hatırlatıcı ("yarın 9'da toplantı"), kapalıyken kaçan açılışta söylenir |
+| `not_al`, `notlari_oku` | Notlar |
+| `hatirla`, `unut` | Kalıcı bilgi ("kahvemi sütsüz içerim"), sistem istemine girer |
+| `uygulama_ac`, `site_ac` | Kurulu uygulama (.desktop) ya da tarayıcıda site; kabuk komutu çalıştırılmaz |
+| `sistem_durumu` | İşlemci, RAM, disk, pil, GPU |
+
+Hafıza, notlar ve hatırlatıcılar `data/hafiza.json` içinde (git dışı). `--no-tools` araçları kapatır.
+
+Gemma 4 notu: `think=False` (hızlı) araç çağırmayı ~%30 bozuyor (çağrı ham metin olarak geliyor ya da hiç
+çağrılmıyor). Ajan ham çağrıyı kendisi çözer ve asla seslendirmez; eylem isteklerinde (hatırlat, aç, not al…)
+ilk cevabı bekletir, model aracı atlarsa soruyu düşünme moduyla yeniden sorar (20/20 doğru araç).
 
 ## Ölçüm
 

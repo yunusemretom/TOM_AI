@@ -119,3 +119,42 @@ def test_inbox_message_is_spoken_when_idle(monkeypatch):
     monkeypatch.setattr(bot, "speak", lambda text, play: spoken.append(text))
     bot.run(frames((0.0, 5)), lambda a: None)
     assert spoken == ["Zaman doldu!"]
+
+
+def test_agent_answer_keeps_only_last_tool_trace(monkeypatch):
+    from tom.brain.agent import Agent
+    from tom.tools.base import Tool, Toolbox
+
+    calls = []
+
+    def chat(msgs, model, tools=None, options=None, think=False):
+        calls.append(msgs)
+        n = len(calls)
+        if n in (1, 3):  # her soruda önce araç ister
+            yield "tools", [{"function": {"name": "web_ara", "arguments": {"sorgu": f"s{n}"}}}]
+        else:
+            yield "text", f"Cevap {n}."
+
+    bot, _ = make(monkeypatch, ["Birinci?", "İkinci?"], [])
+    bot.agent = Agent(chat, "m", Toolbox([Tool("web_ara", "x", {"sorgu": {"type": "string"}}, ["sorgu"],
+                                               lambda sorgu: "sonuç " + sorgu)]))
+    played = []
+    logs = bot.run(frames((0.9, 20), (0.0, 15), (0.9, 20), (0.0, 15)), played.append)
+    assert [l.user for l in logs] == ["Birinci?", "İkinci?"]
+    assert logs[0].tools == ["web_ara"] and "araç: web_ara" in logs[0].line()
+    tools_in_history = [m for m in bot.history if m.get("role") == "tool"]
+    assert [m["content"] for m in tools_in_history] == ["sonuç s3"]  # yalnız son turun izi
+    assert bot.history[-1] == {"role": "assistant", "content": "Bir bakayım. Cevap 4."} or \
+        bot.history[-1]["content"].endswith("Cevap 4.")
+    # ikinci sorunun ilk çağrısı, birinci turun araç izini görüyor (devam sorusu için)
+    assert any(m.get("role") == "tool" and m["content"] == "sonuç s1" for m in calls[2])
+
+
+def test_system_prompt_mentions_tools_time_and_facts():
+    import datetime as dt
+    from tom.brain.persona import Persona
+
+    p = Persona(hitap="Yunus", hakkinda=["Öğrenci."])
+    sp = p.system_prompt(now=dt.datetime(2026, 11, 17, 9, 5), tools=True, facts=["Kahveyi sütsüz içer."])
+    assert "saat 09:05" in sp and "2026-11-17" in sp and "web_ara" in sp
+    assert "Kahveyi sütsüz içer." in sp and "erişimin yok" not in sp

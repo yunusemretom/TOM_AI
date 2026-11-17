@@ -17,6 +17,26 @@ AYLAR = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağu
          "Eylül", "Ekim", "Kasım", "Aralık"]
 
 
+def selam(hitap: str, now: dt.datetime | None = None, reminders: list[dict] | None = None,
+          restarted: bool = False) -> str:
+    """Açılış selamı: saate göre, varsa bugünün hatırlatıcılarıyla."""
+    from tom.skills.text import sayi_yaz
+
+    now = now or dt.datetime.now()
+    if restarted:
+        return "Kısa bir aksaklık oldu, yeniden başladım. Kaldığımız yerden devam edebiliriz."
+    h = now.hour
+    part = "Günaydın" if 5 <= h < 11 else "İyi günler" if h < 17 else "İyi akşamlar" if h < 22 else "İyi geceler"
+    s = f"{part}{' ' + hitap if hitap else ''}, hazırım."
+    today = [r for r in (reminders or []) if r["zaman"].startswith(now.strftime("%Y-%m-%d"))]
+    if today:
+        hh, mm = map(int, today[0]["zaman"][11:16].split(":"))
+        saat = sayi_yaz(hh) + (f" {sayi_yaz(mm)}" if mm else "")
+        s += (f" Bugün {sayi_yaz(len(today))} hatırlatıcın var, ilki saat {saat}: {today[0]['mesaj']}."
+              if len(today) > 1 else f" Bugün saat {saat} için bir hatırlatıcın var: {today[0]['mesaj']}.")
+    return s
+
+
 @dataclass
 class Persona:
     asistan_adi: str = "TOM"
@@ -40,7 +60,8 @@ class Persona:
             konusma_kurallari=[str(x) for x in (d.get("konusma_kurallari") or [])],
         )
 
-    def system_prompt(self, now: dt.datetime | None = None, capabilities: list[str] | None = None) -> str:
+    def system_prompt(self, now: dt.datetime | None = None, capabilities: list[str] | None = None,
+                      tools: bool = False, facts: list[str] | None = None) -> str:
         now = now or dt.datetime.now()
         lines = [
             f"Senin adın {self.asistan_adi}. Kullanıcıyla Türkçe, sesli konuşan kişisel asistanısın; "
@@ -50,14 +71,29 @@ class Persona:
             lines.append(self.kisilik)
         if self.hitap:
             lines.append(f"Kullanıcıya \"{self.hitap}\" diye hitap edebilirsin, ama her cümlede değil.")
-        if self.hakkinda:
+        known = self.hakkinda + list(facts or [])
+        if known:
             lines.append("Kullanıcı hakkında bildiklerin: " + " ".join(
-                s if s.rstrip().endswith((".", "!", "?")) else s + "." for s in self.hakkinda))
+                s if s.rstrip().endswith((".", "!", "?")) else s + "." for s in known))
         lines.append(
-            f"Bugün {now.day} {AYLAR[now.month - 1]} {now.year}, {GUNLER[now.weekday()]}."
-            + (f" Kullanıcı {self.sehir} şehrinde." if self.sehir else "")
+            f"Bugün {now.day} {AYLAR[now.month - 1]} {now.year}, {GUNLER[now.weekday()]}, saat {now:%H:%M} "
+            f"({now:%Y-%m-%d})." + (f" Kullanıcı {self.sehir} şehrinde." if self.sehir else "")
         )
-        if capabilities:
+        if tools:
+            lines.append(
+                "Araçların var: internette arama ve sayfa okuma, haberler, hesap, döviz, hava tahmini, hatırlatıcı, "
+                "not, kalıcı hafıza, uygulama ve site açma, sistem durumu. Güncel bilgi, haber, sonuç, fiyat ya da "
+                "emin olmadığın bir şey sorulursa tahmin etme, web_ara kullan; 'araştırayım mı' diye izin isteme, "
+                "doğrudan ara. Kullanıcı senin önerine 'olur' ya da 'evet' derse o işi hemen aracıyla yap. "
+                "Araç sonucunu kendi cümlelerinle, "
+                "kısaca ve önemli olanı söyleyerek aktar; gerekirse kaynağın adını an, adres okuma. Bir aracı "
+                "çağırmadan bir işi yaptığını asla söyleme. Cevapların sesli okunduğu için kısa olsun: en fazla iki "
+                "üç cümle; haberleri en önemli iki üç başlıkla özetle. Cevabın sonuna 'başka bir şey ister misin' "
+                "gibi sorular ekleme; espriyi ara sıra yap."
+            )
+            if capabilities:
+                lines.append("Şu komutları ayrı bir sistem anında yapıyor: " + ", ".join(capabilities) + ".")
+        elif capabilities:
             lines.append(
                 "Şu işleri senin yerine ayrı bir sistem anında yapıyor ve sonucu kullanıcıya söylüyor: "
                 + ", ".join(capabilities) + ". Böyle bir istek sana ulaştıysa sistem onu anlayamamış "

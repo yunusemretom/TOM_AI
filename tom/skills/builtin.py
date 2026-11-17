@@ -17,7 +17,7 @@ from typing import Callable
 
 from tom.brain.persona import AYLAR, GUNLER
 from tom.skills.base import Skill, SkillResult, rule
-from tom.skills.text import parse_duration, sayi_yaz, sure_yaz
+from tom.skills.text import PCT_RE, normalize, parse_duration, parse_percent, sayi_yaz, sure_yaz
 
 
 def _http_json(url: str, timeout: float = 4.0) -> dict:
@@ -35,8 +35,10 @@ class ClockSkill(Skill):
     description = "saati ve tarihi söylemek"
     rules = [
         rule(r"\bsaat\b.*\b(kaç|ne|nedir)\b|\bsaati söyle|\bsaat kaç\b", "time"),
-        rule(r"\b(bugün|tarih\w*)\b.*\b(ne|nedir|kaç|ayın kaçı|günlerden)\b|\bayın kaçı\b|"
-             r"\bgünlerden ne\b|\bhangi gün(deyiz)?\b|\bbugün ne günü\b", "date"),
+        # "bugün kaç lira", "bugün ne yapsam" tarih sorusu değil: tarih/gün kelimesi ya da kalıp şart
+        rule(r"\btarih\w*\b.*\b(ne|nedir|kaç)\b|\b(bugün|ayın) kaçı\b|\bbugün ayın kaç\w*\b|"
+             r"\bgünlerden ne\b|\bhangi gün(deyiz| bugün)?\b|\bbugün (ne günü|günlerden|hangi gün)\b|"
+             r"\bbugün (tarih|günün tarihi)\b", "date"),
     ]
 
     def __init__(self, now: Callable[[], dt.datetime] = dt.datetime.now):
@@ -63,6 +65,20 @@ WMO_TR = {
 }
 
 
+_ILLER = set(normalize(
+    "adana adıyaman afyonkarahisar ağrı amasya ankara antalya artvin aydın balıkesir bilecik bingöl bitlis bolu "
+    "burdur bursa çanakkale çankırı çorum denizli diyarbakır edirne elazığ erzincan erzurum eskişehir gaziantep "
+    "giresun gümüşhane hakkari hatay ısparta mersin istanbul izmir kars kastamonu kayseri kırklareli kırşehir "
+    "kocaeli konya kütahya malatya manisa kahramanmaraş mardin muğla muş nevşehir niğde ordu rize sakarya samsun "
+    "siirt sinop sivas tekirdağ tokat trabzon tunceli şanlıurfa uşak van yozgat zonguldak aksaray bayburt karaman "
+    "kırıkkale batman şırnak bartın ardahan iğdır yalova karabük kilis osmaniye düzce bodrum alanya"
+).split())
+# "X'de" kalıbında yer adı olmayan sık kelimeler ("hava da", "burada", "bugün de")
+_YER_DEGIL = {"hava", "bugün", "yarın", "şimdi", "şu", "bu", "o", "ben", "sen", "biz", "siz", "ev", "dışarı", "bura",
+              "ora", "şura", "akşam", "sabah", "gece", "öğlen", "hafta", "ay", "yıl", "an", "ara", "sonra", "ve",
+              "bir", "ki", "mi", "çok", "daha", "ama", "hem", "yine", "bence"}
+
+
 class WeatherSkill(Skill):
     """Open-Meteo (anahtarsız, ücretsiz). Konum yalnızca şehir adı olarak gönderilir."""
 
@@ -77,10 +93,27 @@ class WeatherSkill(Skill):
 
     def __init__(self, city: str, http: Callable[[str], dict] = _http_json, ttl_s: float = 600):
         self.city = city
+        self._city_norm = normalize(city) if city else ""
         self.http = http
         self.ttl_s = ttl_s
         self._geo: tuple[float, float, str] | None = None
         self._cache: tuple[float, dict] | None = None
+
+    def match(self, clause: str):
+        hit = super().match(clause)
+        if hit and self._other_place(clause):
+            return None  # "İzmir'de hava": kendi şehrin değil → LLM hava_tahmini aracıyla bakar
+        return hit
+
+    def _other_place(self, clause: str) -> bool:
+        words = clause.split()
+        if any(w in _ILLER and w != self._city_norm for w in words):
+            return True
+        for m in re.finditer(r"\b(\w+) (?:da|de|ta|te|nda|nde|daki|deki)\b", clause):
+            w = m.group(1)
+            if w not in _YER_DEGIL and w != self._city_norm and len(w) > 2:
+                return True
+        return False
 
     def _coords(self):
         if self._geo is None:
@@ -146,15 +179,22 @@ class MediaSkill(Skill):
     """Açık müzik/video çalarlar (Spotify, tarayıcı, VLC...) MPRIS/D-Bus üzerinden; ses pactl ile."""
 
     name = "medya"
-    description = "müziği başlatmak, durdurmak, şarkı değiştirmek ve ses seviyesini ayarlamak"
+    description = ("müziği ve videoyu başlatmak, durdurmak, şarkı değiştirmek, sesi açıp kısmak ve "
+                   "sustur deyince sesi kapatmak")
     rules = [
-        rule(r"\bses\w*\b.*\byüzde\s*(?P<pct>\d+)|\bses\w*\b.*\b(?P<pct2>\d+)\s*(yap|ayarla)", "vol_set"),
-        rule(r"\bses\w*\b.*\b(aç|yükselt|artır|arttır|açar)\w*|\bdaha yüksek sesle\b", "vol_up"),
+        # "sesi %40'a çek", "ses yüzde otuz", "sesi 40 yap"
+        rule(r"\bses\w*\b.*(?:%|\byüzde\b)|^siz (?:%|yüzde)|\bses\w*\b.*\b\d+\s*(yap|ayarla|a|e|ya|ye)?\s*"
+             r"(yap|ayarla|çek|indir|getir|düşür|çıkar|olsun)", "vol_set"),
+        # video/film/dizi: tarayıcıdaki YouTube da MPRIS üzerinden çalar
+        rule(r"\b(video|film|dizi|youtube)\w*\b.*\b(durdur|duraklat|dur|kes|beklet)\w*|\bduraklat\w*|^durdur$", "pause"),
+        rule(r"\b(video|film|dizi|youtube)\w*\b.*\b(başlat|oynat|devam|play)\w*|\boynat\b|^devam et$", "play"),
+        rule(r"\bsustur\w*|\bsesi(ni)? (kapat|kes)\w*|\bsessize al\w*", "mute"),
+        rule(r"\bses\w*\b.*\b(aç|yükselt|artır|arttır|açar)\w*|\bdaha yüksek sesle\b|\bsessizden çık", "vol_up"),
         rule(r"\bses\w*\b.*\b(kıs|azalt|düşür|alçalt)\w*|\bdaha (düşük|kısık) sesle\b", "vol_down"),
         rule(r"\b(sonraki|diğer|başka|sıradaki|yeni)\b.*\b(şarkı|parça|müzi)\w*|"
              r"\b(şarkı|parça|müzi)\w*\b.*\b(değiştir|geç|atla)\w*", "next"),
         rule(r"\b(önceki|bir önceki)\b.*\b(şarkı|parça|müzi)\w*", "previous"),
-        rule(r"\b(müzi|şarkı|parça)\w*\b.*\b(durdur|kapat|dur|kes|sustur)\w*|\bsesi kapat\b", "pause"),
+        rule(r"\b(müzi|şarkı|parça)\w*\b.*\b(durdur|kapat|dur|kes)\w*", "pause"),
         rule(r"\b(müzi|şarkı|parça)\w*\b.*\b(çal|başlat|aç|devam)\w*|\b(müzi|şarkı)\w* (lazım|istiyorum)", "play"),
     ]
 
@@ -206,21 +246,91 @@ class MediaSkill(Skill):
         self.cmd(["pactl", "set-sink-volume", "@DEFAULT_SINK@", f"{pct}%"])
         return pct
 
+    def _mute(self, on: bool) -> None:
+        self.cmd(["pactl", "set-sink-mute", "@DEFAULT_SINK@", "1" if on else "0"])
+
     def run(self, action, m, clause):
+        if action == "mute":
+            self._mute(True)
+            return SkillResult("Sesi kapattım.", cacheable=True)
         if action in ("vol_up", "vol_down", "vol_set"):
+            if action != "vol_down":
+                self._mute(False)  # "sesi aç": sessizdeyse önce sesi geri aç
             if action == "vol_set":
-                pct = self._set_volume(int(m.group("pct") or m.group("pct2")))
+                pct = parse_percent(clause)
+                if pct is None:
+                    d = re.search(r"\b(\d+)\b", clause)
+                    pct = int(d.group(1)) if d else self._volume()
+                pct = self._set_volume(min(pct, 150))
+            elif action == "vol_up":
+                cur = self._volume()
+                pct = cur if cur >= 100 else self._set_volume(min(100, cur + 10))  # "aç" %100'ü aşmaz
             else:
-                pct = self._set_volume(self._volume() + (10 if action == "vol_up" else -10))
+                pct = self._set_volume(self._volume() - 10)
             return SkillResult(f"Ses yüzde {sayi_yaz(pct)}.")
         method = {"play": "Play", "pause": "Pause", "next": "Next", "previous": "Previous"}[action]
         if not self._call(method):
-            return SkillResult("Açık bir müzik çalar bulamadım.", cacheable=True)
-        return SkillResult({"play": "Müzik başlıyor.", "pause": "Durdurdum.",
+            return SkillResult("Açık bir müzik ya da video bulamadım.", cacheable=True)
+        video = re.search(r"video|film|dizi|youtube|oynat|devam", clause)
+        play = "Oynatıyorum." if video else "Müzik başlıyor."
+        return SkillResult({"play": play, "pause": "Durdurdum.",
                             "next": "Sonraki şarkı.", "previous": "Önceki şarkı."}[action], cacheable=True)
 
     def fixed_phrases(self):
-        return ["Müzik başlıyor.", "Durdurdum.", "Sonraki şarkı.", "Önceki şarkı.", "Açık bir müzik çalar bulamadım."]
+        return ["Müzik başlıyor.", "Oynatıyorum.", "Durdurdum.", "Sonraki şarkı.", "Önceki şarkı.", "Sesi kapattım.",
+                "Açık bir müzik ya da video bulamadım."]
+
+
+# ----------------------------------------------------------------------------
+class BrightnessSkill(Skill):
+    """Ekran parlaklığı: GNOME Ayarlar servisi (D-Bus, yetki gerekmez)."""
+
+    name = "parlaklık"
+    description = "ekran parlaklığını artırmak, azaltmak ya da yüzdeye ayarlamak"
+    _DEST = ["--dest", "org.gnome.SettingsDaemon.Power", "--object-path", "/org/gnome/SettingsDaemon/Power"]
+    _IFACE = "org.gnome.SettingsDaemon.Power.Screen"
+    rules = [
+        rule(r"\bparlaklı\w*\b.*(?:%|\byüzde\b)|\bparlaklı\w*\b.*\b\d+\s*(a|e|ya|ye)?\s*(yap|ayarla|olsun|çek|getir)", "set"),
+        rule(r"\bparlaklı\w*\b.*\b(en (yüksek|fazla)|sonuna kadar|full|tam)\w*|\bekranı en parlak", "max"),
+        rule(r"\bparlaklı\w*\b.*\ben (düşü|az)\w*", "min"),
+        rule(r"\bparlaklı\w*\b.*\b(art|yükselt|aç|çoğalt|çıkar)\w*|\bekran\w* (daha )?(parlak|aydınlık)\b.*(yap|olsun)|"
+             r"\bekranı aydınlat\w*|\bekran\w* (çok )?(karanlık|loş)", "up"),
+        rule(r"\bparlaklı\w*\b.*\b(azalt|düşür|kıs|alçalt|indir)\w*|\bekran\w* (çok )?parlak\b|\bekranı karart\w*|"
+             r"\bekran\w* gözümü (alıyor|yakıyor)", "down"),
+    ]
+
+    def __init__(self, run: Callable[[list[str]], str] = _run, step: int = 15):
+        self.cmd = run
+        self.step = step
+
+    def _get(self) -> int:
+        out = self.cmd(["gdbus", "call", "--session", *self._DEST, "--method",
+                        "org.freedesktop.DBus.Properties.Get", self._IFACE, "Brightness"])
+        m = re.search(r"<(-?\d+)>", out)
+        if not m or int(m.group(1)) < 0:
+            raise RuntimeError("parlaklık okunamadı")
+        return int(m.group(1))
+
+    def _set(self, pct: int) -> int:
+        pct = max(5, min(100, pct))  # 0 ekranı tamamen karartabilir
+        self.cmd(["gdbus", "call", "--session", *self._DEST, "--method",
+                  "org.freedesktop.DBus.Properties.Set", self._IFACE, "Brightness", f"<int32 {pct}>"])
+        return pct
+
+    def run(self, action, m, clause):
+        if action == "set":
+            pct = parse_percent(clause)
+            if pct is None:
+                d = re.search(r"\b(\d+)\b", clause)
+                pct = int(d.group(1)) if d else self._get()
+            pct = self._set(pct)
+        elif action == "max":
+            pct = self._set(100)
+        elif action == "min":
+            pct = self._set(5)
+        else:
+            pct = self._set(self._get() + (self.step if action == "up" else -self.step))
+        return SkillResult(f"Parlaklık yüzde {sayi_yaz(pct)}.")
 
 
 # ----------------------------------------------------------------------------
@@ -313,4 +423,5 @@ class DeviceSkill(Skill):
 def default_skills(city: str = "", announce: Callable[[str], None] = print,
                    devices: DeviceBackend | None = None) -> list[Skill]:
     # Sıra önemli: daha özel kurallar önce (ses seviyesi "aç" kelimesini cihazlardan önce alır)
-    return [ClockSkill(), TimerSkill(announce), WeatherSkill(city), MediaSkill(), DeviceSkill(devices)]
+    return [ClockSkill(), TimerSkill(announce), WeatherSkill(city), MediaSkill(), BrightnessSkill(),
+            DeviceSkill(devices)]

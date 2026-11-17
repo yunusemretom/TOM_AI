@@ -22,3 +22,8 @@ sounddevice==0.5.6
 # Veri seti aracı (konuşmacı ayrımı). 1.1+ torch>=2.7 ister ve torch’u CUDA 13’e yükseltip GPU’yu bozar:
 #   uv pip install --python .venv speechbrain==1.0.3 -c <(printf "torch==2.6.0\ntorchaudio==2.6.0\n")
 speechbrain==1.0.3
+# Asistan araçları: internette arama (anahtarsız metasearch) ve sayfa metni çıkarma.
+# torch'u yükseltmesin diye kısıtla kur:  uv pip install --python .venv ddgs trafilatura -c <(printf "torch==2.6.0+cu124\nnumpy<2\n")
+ddgs==9.16.1
+trafilatura==2.3.1
+psutil

@@ -51,6 +51,19 @@ DURATION_RE = re.compile(
 )
 
 
+# Yüzde: "%40", "yüzde 40", "yüzde yetmiş beş", "yüzde yüz"
+PCT_RE = re.compile(r"(?:%\s*|\byüzde\s+)(?P<pct>\d+|yüz|(?:(?:" + "|".join(_TENS[1:]) + r")\s*)?(?:"
+                    + "|".join(_ONES[1:]) + r")|" + "|".join(_TENS[1:]) + r")\b")
+
+
+def parse_percent(text: str) -> int | None:
+    m = PCT_RE.search(text)
+    if not m:
+        return None
+    v = 100 if m.group("pct") == "yüz" else word_number(m.group("pct"))
+    return int(v) if v is not None else None
+
+
 def word_number(s: str) -> float | None:
     s = s.strip().replace(",", ".")
     try:

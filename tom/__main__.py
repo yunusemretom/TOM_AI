@@ -8,6 +8,7 @@ Deneme modları (mikrofon/hoparlör yerine):
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import os
 import time
 from pathlib import Path
@@ -65,9 +66,13 @@ def gpu_free_mib() -> int | None:
         return None
 
 
-def main():
-    ap = argparse.ArgumentParser(prog="tom")
-    ap.add_argument("--llm", default="gemma4:e2b")
+def make_parser(prog: str = "tom") -> argparse.ArgumentParser:
+    ap = argparse.ArgumentParser(prog=prog)
+    ap.add_argument("--llm", default="gemma4:e4b")
+    ap.add_argument("--llm-gpu-layers", type=int, default=None,
+                    help="LLM'in GPU'ya konan katman sayısı. XTTS+Whisper ~3,2 GB tuttuğu için e4b tamamen sığmaz; "
+                         "verilmezse e4b'de 26 (6 GB kartta Whisper'a ~0,8 GB pay; 28'de uzun oturumda OOM oldu), "
+                         "diğerlerinde Ollama karar verir")
     ap.add_argument("--xtts", default=DEFAULT_XTTS, help="XTTS model klasörü (model.pth, config.json, vocab.json)")
     ap.add_argument("--ref", default=DEFAULT_REF, nargs="+", help="Klon ses referansı")
     ap.add_argument("--persona", default=None, help="Kişilik dosyası (varsayılan config/kisilik.yaml)")
@@ -76,10 +81,18 @@ def main():
     ap.add_argument("--silence-ms", type=int, default=600, help="Konuşma bitti saymak için sessizlik")
     ap.add_argument("--barge-in", action="store_true", help="Konuşurken araya girilebilsin (kulaklıkla)")
     ap.add_argument("--no-skills", action="store_true", help="Hızlı komutları kapat (her şey LLM'e)")
+    ap.add_argument("--no-tools", action="store_true", help="LLM araçlarını kapat (web, hatırlatıcı, hafıza…)")
+    ap.add_argument("--no-wake", action="store_true", help="'Hey TOM' uyandırma kelimesi olmadan her cümleyi dinle")
+    ap.add_argument("--wake-window", type=float, default=40, help="Cevaptan sonra 'Hey TOM' gerekmeyen süre (s)")
+    ap.add_argument("--idle-sleep", type=float, default=600, help="Bu kadar sessizlikten sonra uyu, LLM'i boşalt (s)")
     ap.add_argument("--input-wav", help="Mikrofon yerine bu dosyayı dinle (deneme)")
     ap.add_argument("--text", nargs="+", help="Mikrofon yerine bu cümleleri sırayla sor (deneme)")
     ap.add_argument("--output-wav", help="Hoparlör yerine bu dosyaya yaz (deneme)")
-    args = ap.parse_args()
+    return ap
+
+
+def build(args, need_stt: bool = True):
+    """Modelleri yükler (XTTS → Whisper → LLM sırası VRAM için önemli); (asistan, tts, kişilik) döner."""
 
     if args.deepspeed:
         os.environ.setdefault("CUDA_HOME", "/usr/local/cuda-12.4")
@@ -104,7 +117,7 @@ def main():
     tts.warmup()
 
     stt = None
-    if not args.text:
+    if need_stt:
         from tom.listener.whisper_stt import WhisperSTT
 
         free = gpu_free_mib()
@@ -122,6 +135,34 @@ def main():
 
     bot = Assistant(stt=stt, vad=SileroVad(), tts=tts, llm_model=args.llm, persona=persona,
                     vad_cfg=EndpointConfig(min_silence_ms=args.silence_ms))
+    import torch
+
+    bot.free_gpu = torch.cuda.empty_cache  # her turdan sonra: XTTS'in tuttuğu boş bellek Whisper'a kalsın
+    if not args.no_tools:
+        from tom.brain.agent import Agent
+        from tom.brain.ollama_client import stream_chat_events
+        from tom.tools.memory import Memory
+        from tom.tools.registry import default_toolbox
+
+        bot.memory = Memory()
+        for x in bot.memory.due():  # uygulama kapalıyken kaçan hatırlatıcılar
+            bot.notify(f"Kaçırdığın hatırlatma ({x['zaman']}): {x['mesaj']}")
+        bot.memory.watch(bot.notify)
+        bot.llm_options["num_ctx"] = 4096  # araç sonuçları (web sayfaları) bağlama sığsın
+        bot.llm_options["temperature"] = 0.4  # araç kararlarında tutarlılık
+        from tom.tools.pc import bildir
+
+        def tool_started(name, a):
+            if name in ("web_ara", "web_oku", "haberler"):
+                bildir("TOM araştırıyor 🔎", str(a.get("sorgu") or a.get("adres") or a.get("konu") or "gündem"))
+
+        bot.agent = Agent(stream_chat_events, args.llm, default_toolbox(bot.memory), options=bot.llm_options,
+                          on_tool_start=tool_started,
+                          on_tool=lambda name, a, r: print(f"   🔧 {name}({', '.join(f'{k}={v!r}' for k, v in a.items())})"
+                                                           f" → {r[:90]!r}", flush=True))
+    layers = args.llm_gpu_layers if args.llm_gpu_layers is not None else (26 if "e4b" in args.llm else None)
+    if layers is not None:
+        bot.llm_options["num_gpu"] = layers  # ısınma da aynı seçeneklerle yapılır (yoksa Ollama modeli yeniden yükler)
     if not args.no_skills:
         bot.router = Router(default_skills(city=persona.sehir, announce=bot.notify))
         import threading
@@ -130,15 +171,57 @@ def main():
             if hasattr(s, "warm"):
                 threading.Thread(target=s.warm, daemon=True).start()
         bot.phrases = PhraseCache(tts)
-        n = bot.phrases.warm(bot.router.fixed_phrases())
+        from tom.brain.agent import ALL_FILLERS
+        from tom.brain.persona import selam
+        greetings = [selam(persona.hitap, dt.datetime(2026, 1, 1, h)) for h in (8, 13, 19, 23)]
+        from tom.wake import PHRASES as WAKE_PHRASES
+        n = bot.phrases.warm(bot.router.fixed_phrases() + ALL_FILLERS + greetings + [selam("", restarted=True)]
+                             + WAKE_PHRASES)
         print(f"Hazır cümle sesleri: {len(bot.phrases.audio)} ({n} yeni üretildi)", flush=True)
 
+    def warm_llm():
+        # Isınma aynı seçeneklerle olmalı: num_ctx değişirse Ollama modeli baştan yükler (~6 s)
+        for _ in stream_chat([{"role": "system", "content": bot.system_prompt()},
+                              {"role": "user", "content": "Merhaba"}], args.llm, options=bot.llm_options):
+            pass
+
     print(f"LLM ({args.llm}) ısınıyor…", flush=True)
-    # Isınma aynı seçeneklerle olmalı: num_ctx değişirse Ollama modeli baştan yükler (~6 s)
-    for _ in stream_chat([{"role": "system", "content": bot.system_prompt()},
-                          {"role": "user", "content": "Merhaba"}], args.llm, options=bot.llm_options):
-        pass
+    warm_llm()
     print(f"Hazır ({time.perf_counter() - t:.0f} s).", flush=True)
+
+    if not args.no_wake and not (args.text or args.input_wav):  # denemelerde her cümle dinlenir
+        import threading
+
+        from tom.brain.ollama_client import unload
+        from tom.skills.builtin import MediaSkill
+        from tom.wake import WakeGate
+
+        bot.wake = WakeGate(window_s=args.wake_window, idle_sleep_s=args.idle_sleep)
+        bot.wake.touch()  # açılıştan hemen sonra "Hey TOM" demeden konuşulabilsin
+        media = MediaSkill()
+        bot.media_playing = lambda: any(media._status(p) == "Playing" for p in media._players())
+
+        def on_sleep():
+            def go():
+                try:
+                    unload(args.llm)
+                    print(f"   💤 {args.llm} bellekten çıkarıldı.", flush=True)
+                except Exception as e:  # noqa: BLE001
+                    print(f"   ⚠️  LLM boşaltılamadı: {e}", flush=True)
+                bot.free_gpu()
+            threading.Thread(target=go, daemon=True).start()
+
+        def on_wake():
+            threading.Thread(target=warm_llm, daemon=True).start()  # ilk cevap beklerken yüklenir
+
+        bot.on_sleep, bot.on_wake = on_sleep, on_wake
+
+    return bot, tts, persona
+
+
+def main():
+    args = make_parser().parse_args()
+    bot, tts, persona = build(args, need_stt=not args.text)
 
     if args.input_wav or args.text:
         out: list[np.ndarray] = []
@@ -156,9 +239,18 @@ def main():
         return
 
     from tom.audio.io import MicStream, Player
+    from tom.brain.persona import selam
+    from tom.tools.pc import bildir
 
+    restarted = os.environ.get("TOM_RESTARTED") == "1"
+    if restarted:
+        restore_history(bot)
     player = Player(tts.sample_rate)
-    print("Dinliyorum. Çıkmak için Ctrl+C.\n", flush=True)
+    hello = selam(persona.hitap, reminders=bot.memory.data["hatirlaticilar"] if bot.memory else None,
+                  restarted=restarted)
+    print(f"Dinliyorum. Çıkmak için Ctrl+C.\n\n👋 TOM: {hello}", flush=True)
+    bildir("TOM hazır", hello)
+    bot.speak(hello, player.play)
     try:
         with MicStream() as mic:
             def frames():
@@ -166,11 +258,54 @@ def main():
                     yield mic.frames.get()
 
             bot.run(frames(), player.play, is_speaking=lambda: player.busy,
-                    on_resume=mic.drain, barge_in=player.stop if args.barge_in else None)
+                    on_resume=mic.drain, barge_in=player.stop if args.barge_in else None,
+                    interrupt=player.stop)  # konuşurken "sus / sessiz ol / uyu" ile hemen sus
     except KeyboardInterrupt:
         print("\nGörüşürüz.")
+    except Exception as e:  # noqa: BLE001 — GPU belleği yetmedi vb.: kendini yeniden başlat
+        player.close()
+        restart_after_crash(bot, e)
     finally:
         player.close()
+
+
+HISTORY_FILE = Path(__file__).resolve().parent.parent / "data" / "son_konusma.json"
+
+
+def restart_after_crash(bot, err: Exception, window_s: float = 600, max_restarts: int = 3) -> None:
+    """Çökünce süreci aynı argümanlarla baştan başlatır (GPU belleği tamamen temizlenir). 10 dk'da 3'ten fazla
+    çökerse döngüye girmemek için durur. Son konuşma diske yazılır, yeni süreç kaldığı yerden devam eder."""
+    import json
+    import sys
+    import traceback
+
+    traceback.print_exception(err)
+    now = time.time()
+    times = [float(t) for t in os.environ.get("TOM_RESTART_TIMES", "").split(",") if t]
+    times = [t for t in times if now - t < window_s] + [now]
+    if len(times) > max_restarts:
+        print(f"\n❌ {len(times) - 1} kez üst üste çöktü, duruyorum. Son hata: {err}", flush=True)
+        raise SystemExit(1)
+    try:
+        HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
+        HISTORY_FILE.write_text(json.dumps({"zaman": now, "gecmis": bot.history[-12:]}, ensure_ascii=False))
+    except Exception:  # noqa: BLE001
+        pass
+    print(f"\n🔄 Hata: {err}\n   Yeniden başlatıyorum ({len(times)}/{max_restarts})…\n", flush=True)
+    os.environ["TOM_RESTARTED"] = "1"
+    os.environ["TOM_RESTART_TIMES"] = ",".join(f"{t:.0f}" for t in times)
+    os.execv(sys.executable, [sys.executable, "-m", "tom", *sys.argv[1:]])
+
+
+def restore_history(bot, max_age_s: float = 600) -> None:
+    import json
+
+    try:
+        d = json.loads(HISTORY_FILE.read_text())
+        if time.time() - d["zaman"] < max_age_s:
+            bot.history = d["gecmis"]
+    except Exception:  # noqa: BLE001
+        pass
 
 
 if __name__ == "__main__":

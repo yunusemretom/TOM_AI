@@ -82,3 +82,37 @@ def unload_all(host: str = DEFAULT_HOST) -> list[str]:
     for n in names:
         unload(n, host)
     return names
+
+
+def stream_chat_events(
+    messages: list[dict],
+    model: str,
+    *,
+    tools: list[dict] | None = None,
+    host: str = DEFAULT_HOST,
+    options: dict | None = None,
+    keep_alive: str | int = "30m",
+    think: bool | None = False,
+) -> Iterator[tuple[str, object]]:
+    """Araçlı sohbet: ("text", parça) ve modelin araç istediği yerde ("tools", [çağrılar]) verir.
+
+    Çağrı biçimi Ollama'nınki: {"function": {"name": ..., "arguments": {...}}}.
+    """
+    body = {"model": model, "messages": messages, "stream": True, "keep_alive": keep_alive,
+            "options": options or {}}
+    if tools:
+        body["tools"] = tools
+    if think is not None:
+        body["think"] = think
+    with _post(host, "/api/chat", body) as resp:
+        for line in resp:
+            if not line.strip():
+                continue
+            msg = json.loads(line)
+            if "error" in msg:
+                raise RuntimeError(msg["error"])
+            m = msg.get("message", {})
+            if m.get("content"):
+                yield "text", m["content"]
+            if m.get("tool_calls"):
+                yield "tools", m["tool_calls"]

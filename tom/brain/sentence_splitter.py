@@ -26,19 +26,40 @@ _CLOSER = re.compile(
     r"|^(senin için |sana )?yapabileceğim (başka )?bir şey var mı$"
     r"|^(sana )?yardımcı olabileceğim başka bir (şey|konu) var mı$"
     r"|^başka (bir )?(sorun|sorunuz|sorusu|isteğin|bir şey|soru) var mı$"
+    r"|^(peki |yunus )?başka (bir )?\w+( \w+){0,4} (ister misin|istersin|ihtiyacın var mı|yapmamı ister misin|"
+    r"yardımcı olabilir miyim|var mı)$"
+    r"|^bu konulardan (herhangi )?(biri|birisi) hakkında .*(ister misin|var mı)$"
 )
 
 
+_SPEAKER = re.compile(r"^\s*(?:TOM|Tom|Asistan)\s*:\s*")  # model bazen konuşmacı etiketi yazıyor
+
+
 def _clean(text: str) -> str:
+    text = _SPEAKER.sub("", text)
     text = _EMOJI.sub("", text)
     text = _MD.sub("", text)
     return _WS.sub(" ", text).strip()
+
+
+# "Yağmur bekleniyor, başka bir şey ister misin?" → yalnız kuyruk atılır, bilgi kalır
+_CLOSER_TAIL = re.compile(
+    r"[,;]\s*(peki |yunus |ya da )?başka (bir )?\w+( \w+){0,4} (ister misin|istersin|ihtiyacın var mı|"
+    r"yapmamı ister misin|yardımcı olabilir miyim|var mı)\s*\?\s*$", re.I)
+
+
+def strip_closer_tail(sentence: str) -> str:
+    return _CLOSER_TAIL.sub(".", sentence)
 
 
 def is_filler_closer(sentence: str) -> bool:
     s = sentence.replace("I", "ı").replace("İ", "i").lower()
     s = re.sub(r"[^\w\s]", " ", s)
     return bool(_CLOSER.match(" ".join(s.split())))
+
+
+class Spoken(str):
+    """Hemen söylenecek tam cümle (ör. araç çalışırken "Bir bakayım."): en az uzunluk beklenmez."""
 
 
 class SentenceSplitter:
@@ -50,6 +71,11 @@ class SentenceSplitter:
         self.emitted = 0
 
     def feed(self, piece: str) -> list[str]:
+        if isinstance(piece, Spoken):  # bekletmeden, tek başına cümle olarak ver
+            out = self.flush() if self.buf.strip() else []
+            self.buf = ""
+            out.extend(self._emit(str(piece)))
+            return out
         self.buf += piece
         out: list[str] = []
         while True:
@@ -70,8 +96,10 @@ class SentenceSplitter:
         for line in chunk.split("\n"):
             for part in self._limit(_clean(line)):
                 if part and any(ch.isalnum() for ch in part):
-                    if self.drop_closers and is_filler_closer(part):
-                        continue
+                    if self.drop_closers:
+                        if is_filler_closer(part):
+                            continue
+                        part = strip_closer_tail(part)
                     out.append(part)
         self.emitted += len(out)
         return out

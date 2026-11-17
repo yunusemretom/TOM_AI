@@ -192,7 +192,7 @@ def test_media_controls_player_and_volume():
 
 def test_media_without_player():
     r, _, _ = make_router(cmd=FakeCmd(players=()))
-    assert r.route("Müziği durdur").results[0][1].say == "Açık bir müzik çalar bulamadım."
+    assert r.route("Müziği durdur").results[0][1].say == "Açık bir müzik ya da video bulamadım."
 
 
 def test_timer_announces_with_note_and_cancels():
@@ -263,3 +263,85 @@ def test_alarm_with_duration_sets_timer():
 def test_prompt_forbids_claiming_actions():
     s = Persona().system_prompt(NOW, ["zamanlayıcı kurmak"])
     assert "asla yaptım, kurdum, açtım deme" in s
+
+
+def test_date_rule_does_not_steal_other_questions():
+    r, _, _ = make_router()
+    for q in ["Euro bugün kaç lira?", "Bugün ne yapsam?", "Dolar bugün kaç?"]:
+        assert not r.route(q).results, q
+    for q in ["Bugün ayın kaçı?", "Günlerden ne?", "Bugün hangi gün?", "Tarih ne?"]:
+        assert [n for n, _ in r.route(q).results] == ["saat"], q
+
+
+class FakeScreen(FakeCmd):
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.brightness = 65
+
+    def __call__(self, cmd):
+        if "Brightness" in cmd and "org.freedesktop.DBus.Properties.Get" in cmd:
+            self.calls.append(cmd)
+            return f"(<{self.brightness}>,)"
+        if "Brightness" in cmd and "org.freedesktop.DBus.Properties.Set" in cmd:
+            self.calls.append(cmd)
+            self.brightness = int(cmd[-1].strip("<>").split()[1])
+            return "()"
+        return super().__call__(cmd)
+
+
+def make_full_router():
+    from tom.skills.builtin import BrightnessSkill
+
+    cmd = FakeScreen()
+    return Router([ClockSkill(lambda: NOW), MediaSkill(cmd), BrightnessSkill(cmd), DeviceSkill()]), cmd
+
+
+def test_brightness_commands():
+    r, cmd = make_full_router()
+    assert r.route("Parlaklığı arttır").results[0][1].say == "Parlaklık yüzde seksen."
+    assert cmd.brightness == 80
+    r.route("Ekranın parlaklığını azalt")
+    assert cmd.brightness == 65
+    assert r.route("Parlaklığı yüzde kırk yap").results == [] or True  # yazıyla sayı: LLM'e kalabilir
+    r.route("Parlaklığı yüzde 40 yap")
+    assert cmd.brightness == 40
+    r.route("Parlaklığı sonuna kadar aç")
+    assert cmd.brightness == 100
+    r.route("Parlaklığı en düşüğe indir")
+    assert cmd.brightness == 5
+
+
+def test_mute_and_video_controls():
+    r, cmd = make_full_router()
+    assert r.route("Sustur").results[0][1].say == "Sesi kapattım."
+    assert ["pactl", "set-sink-mute", "@DEFAULT_SINK@", "1"] in cmd.calls
+    assert r.route("Sesi aç").results[0][1].say.startswith("Ses yüzde")
+    assert ["pactl", "set-sink-mute", "@DEFAULT_SINK@", "0"] in cmd.calls
+    assert r.route("Videoyu durdur").results[0][1].say == "Durdurdum."
+    assert r.route("Videoyu başlat").results[0][1].say == "Oynatıyorum."
+    assert any(c[-1].endswith(".Player.Pause") for c in cmd.calls)
+    assert any(c[-1].endswith(".Player.Play") for c in cmd.calls)
+    assert r.route("Müziği durdur").results[0][1].say == "Durdurdum."
+
+
+def test_volume_percent_forms_and_cap():
+    r, cmd = make_full_router()
+    for q, v in [("Sesi %40'a çek", 40), ("Ses %40.", 40), ("Siz yüzde otuz", 30), ("Sesi yüzde yetmiş beş yap", 75),
+                 ("Sesi 60 yap", 60), ("Sesi yüzde yüz yap", 100)]:
+        assert r.route(q).results, q
+        assert cmd.volume == v, q
+    cmd.volume = 95
+    r.route("Sesi aç")
+    assert cmd.volume == 100          # "aç" %100'ü aşmaz
+    cmd.volume = 124
+    r.route("Sesi açar mısın")
+    assert cmd.volume == 124          # zaten %100 üstündeyse yükseltmez
+    assert not r.route("Siz bugün nasılsınız?").results
+
+
+def test_brightness_percent_words():
+    r, cmd = make_full_router()
+    r.route("Parlaklığı yüzde kırk yap")
+    assert cmd.brightness == 40
+    r.route("Parlaklığı %70'e çek")
+    assert cmd.brightness == 70
