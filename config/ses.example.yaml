@@ -1,0 +1,23 @@
+# TOM'un sesi. Kopyala: cp config/ses.example.yaml config/ses.yaml  (ses.yaml git dışında kalır)
+# Değiştirdikten sonra dene:   PYTHONPATH=. .venv/bin/python tools/ses_dene.py
+# Beğenince TOM'u yeniden başlat. Yollar proje klasörüne göredir.
+
+# XTTS modeli. Seçenekler:
+#   models/xtts_ince_test1  — test1 konuşmacısıyla fine-tune (şu anki)
+#   models/xtts_ince_test2  — test2 (53 dk veri, en genel)
+#   ~/.local/share/tts/tts_models--multilingual--multi-dataset--xtts_v2  — orijinal XTTS
+model: models/xtts_ince_test1
+
+# Klonlanacak ses: 1-5 temiz klip (her biri 6-12 sn, tek kişi, müziksiz, yankısız).
+# Klipler değişince ses analizi kendiliğinden yeniden yapılır (models/voices/ altında önbellek).
+referans:
+  - models/voices/ugur/ref_1.wav
+  - models/voices/ugur/ref_2.wav
+  - models/voices/ugur/ref_3.wav
+
+# Üretim ayarları (boş bırakılan modelin config.json'ındaki değeri kullanır)
+hiz: 1.0            # 0.85 yavaş … 1.0 normal … 1.2 hızlı
+sicaklik: 0.75      # 0.3 düz ve kararlı … 0.75 doğal … 0.9 canlı ama hata yapabilir
+top_p: 0.85         # düşük: daha güvenli kelime/ton seçimi
+top_k: 50
+tekrar_cezasi: 5.0  # yüksek: takılma/tekrar azalır; çok yüksek: tuhaf vurgular

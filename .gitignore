@@ -37,6 +37,7 @@ archive/denemeler/vosk-model-small-tr-0.3/
 
 # Kişisel ayarlar
 config/kisilik.yaml
+config/ses.yaml
 
 # Fine-tune verileri
 data/

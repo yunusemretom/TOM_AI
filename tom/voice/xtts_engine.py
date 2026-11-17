@@ -32,6 +32,8 @@ class XttsEngine:
         use_deepspeed: bool = False,
         cache_dir: Path | str = "models/voices",
         language: str = "tr",
+        gen_overrides: dict | None = None,
+        style_key: str = "",
     ):
         d = Path(model_dir)
         self.checkpoint = Path(checkpoint) if checkpoint else d / "model.pth"
@@ -47,6 +49,8 @@ class XttsEngine:
         self.config = None
         self.latents: SpeakerLatents | None = None
         self.voice_key: str | None = None  # ses + model kimliği (hazır cümle önbelleği için)
+        self.gen_overrides = dict(gen_overrides or {})  # config/ses.yaml: hız, sıcaklık… (config.json'ı ezer)
+        self.style_key = style_key  # üretim ayarlarının özeti: değişince hazır cümleler yeniden üretilir
 
     # ---- yükleme -------------------------------------------------------
     def load(self) -> None:
@@ -118,6 +122,7 @@ class XttsEngine:
             "top_k": c.top_k,
             "top_p": c.top_p,
         }
+        kw.update(self.gen_overrides)
         kw.update(overrides)
         return kw
 

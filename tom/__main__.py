@@ -73,8 +73,9 @@ def make_parser(prog: str = "tom") -> argparse.ArgumentParser:
                     help="LLM'in GPU'ya konan katman sayısı. XTTS+Whisper ~3,2 GB tuttuğu için e4b tamamen sığmaz; "
                          "verilmezse e4b'de 26 (6 GB kartta Whisper'a ~0,8 GB pay; 28'de uzun oturumda OOM oldu), "
                          "diğerlerinde Ollama karar verir")
-    ap.add_argument("--xtts", default=DEFAULT_XTTS, help="XTTS model klasörü (model.pth, config.json, vocab.json)")
-    ap.add_argument("--ref", default=DEFAULT_REF, nargs="+", help="Klon ses referansı")
+    ap.add_argument("--xtts", default=None, help="XTTS model klasörü (verilmezse config/ses.yaml, o da yoksa "
+                    "fine-tune edilmiş model)")
+    ap.add_argument("--ref", default=None, nargs="+", help="Klon ses referansı (verilmezse config/ses.yaml)")
     ap.add_argument("--persona", default=None, help="Kişilik dosyası (varsayılan config/kisilik.yaml)")
     ap.add_argument("--stt-model", default="large-v3-turbo")
     ap.add_argument("--deepspeed", action="store_true")
@@ -111,7 +112,15 @@ def build(args, need_stt: bool = True):
     persona = Persona.load(Path(args.persona) if args.persona else None)
     free_gpu_from_ollama()
     print("XTTS yükleniyor…", flush=True)
-    tts = XttsEngine(Path(args.xtts).expanduser(), use_deepspeed=args.deepspeed)
+    from tom.voice.settings import VoiceSettings
+
+    voice = VoiceSettings.load()
+    args.xtts = args.xtts or voice.model or DEFAULT_XTTS
+    args.ref = args.ref or voice.referans or DEFAULT_REF
+    tts = XttsEngine(Path(args.xtts).expanduser(), use_deepspeed=args.deepspeed,
+                     gen_overrides=voice.overrides(), style_key=voice.style_key())
+    print(f"Ses: {Path(args.xtts).name} · {len(args.ref)} referans klip · {voice.overrides() or 'model ayarları'}",
+          flush=True)
     tts.load()
     tts.set_voice([Path(r).expanduser() for r in args.ref])
     tts.warmup()

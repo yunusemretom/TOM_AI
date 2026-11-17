@@ -3,6 +3,12 @@
 TOM AI, yerelde çalışan, Türkçe konuşan ve anlık yanıt veren kişisel bir sesli asistandır.
 `Asistan şu an geliştirme aşamasındadır.` Hedef platform: Linux.
 
+**Ayrıntılı anlatım ve sesi değiştirme rehberi: [docs/NASIL_CALISIR.md](docs/NASIL_CALISIR.md)**
+
+## Ses ayarları
+
+Sesin bütün ayarları `config/ses.yaml` içinde (model, referans klipler, hız, sıcaklık…). İlk kez: `cp config/ses.example.yaml config/ses.yaml`. Denemek için: `PYTHONPATH=. .venv/bin/python tools/ses_dene.py --cal`.
+
 ## Proje yapısı
 
 ```
