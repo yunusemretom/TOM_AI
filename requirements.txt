@@ -27,3 +27,5 @@ speechbrain==1.0.3
 ddgs==9.16.1
 trafilatura==2.3.1
 psutil
+# Yazılı TOM: OpenAI uyumlu API (tom/api.py, Open WebUI bağlanır)
+aiohttp

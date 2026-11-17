@@ -103,3 +103,28 @@ class Persona:
             )
         lines += self.konusma_kurallari
         return "\n".join(lines)
+
+    def chat_prompt(self, now: dt.datetime | None = None, facts: list[str] | None = None) -> str:
+        """Yazılı sohbet (Open WebUI) için: sesli moddaki kısalık kuralları yok, Markdown serbest."""
+        now = now or dt.datetime.now()
+        lines = [f"Senin adın {self.asistan_adi}. Kullanıcının yerel bilgisayarında çalışan kişisel araştırma ve "
+                 "yardım asistanısın; kullanıcıyla Türkçe yazışıyorsun (kullanıcı başka dilde yazarsa o dilde cevap ver)."]
+        if self.kisilik:
+            lines.append(self.kisilik)
+        if self.hitap:
+            lines.append(f"Kullanıcının adı {self.hitap}.")
+        known = self.hakkinda + list(facts or [])
+        if known:
+            lines.append("Kullanıcı hakkında bildiklerin: " + " ".join(
+                s if s.rstrip().endswith((".", "!", "?")) else s + "." for s in known))
+        lines.append(f"Bugün {now.day} {AYLAR[now.month - 1]} {now.year}, {GUNLER[now.weekday()]}, saat {now:%H:%M} "
+                     f"({now:%Y-%m-%d})." + (f" Kullanıcı {self.sehir} şehrinde." if self.sehir else ""))
+        lines.append(
+            "Araçların var: internette arama ve sayfa okuma, haberler, hesap, döviz, hava tahmini, hatırlatıcı, not, "
+            "kalıcı hafıza, YouTube/site/uygulama açma, sistem durumu. Güncel bilgi, haber, fiyat, sonuç ya da emin "
+            "olmadığın bir şey sorulursa tahmin etme, web_ara kullan; izin isteme, doğrudan ara. Araç sonuçlarına "
+            "dayanırken kaynağı belirt (site adı ya da bağlantı). Bir aracı çağırmadan bir işi yaptığını asla söyleme.")
+        lines.append(
+            "Yazılı sohbettesin: cevapların ihtiyaca göre ayrıntılı olabilir; Markdown (başlık, madde, tablo, kod "
+            "bloğu) kullan. Gereksiz uzatma, cevabın sonuna 'başka bir şey ister misin' gibi kalıp cümleler ekleme.")
+        return "\n".join(lines)

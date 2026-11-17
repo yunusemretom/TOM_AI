@@ -3,7 +3,8 @@
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
 DESK="$HOME/.local/share/applications/tom-asistan.desktop"
 if [ "$1" = "--kaldir" ]; then rm -f "$DESK"; echo "Kaldırıldı."; exit 0; fi
-chmod +x "$ROOT/scripts/tom-baslat.sh" "$ROOT/scripts/tom-kapat.sh" "$ROOT/scripts/tom-pencere.sh"
+chmod +x "$ROOT/scripts/tom-baslat.sh" "$ROOT/scripts/tom-kapat.sh" "$ROOT/scripts/tom-pencere.sh" \
+  "$ROOT/scripts/tom-sohbet.sh" "$ROOT/scripts/tom-api.sh" "$ROOT/scripts/openwebui.sh"
 mkdir -p "$(dirname "$DESK")"
 cat > "$DESK" <<DESKTOP
 [Desktop Entry]
@@ -18,7 +19,11 @@ Terminal=false
 Categories=Utility;
 Keywords=asistan;tom;ses;jarvis;
 StartupNotify=true
-Actions=hizli;terminal;kapat;
+Actions=sohbet;hizli;terminal;kapat;
+
+[Desktop Action sohbet]
+Name=TOM Sohbet (yazılı, Open WebUI)
+Exec="$ROOT/scripts/tom-sohbet.sh"
 
 [Desktop Action hizli]
 Name=TOM (hızlı model, e2b)

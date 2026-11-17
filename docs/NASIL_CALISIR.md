@@ -249,6 +249,28 @@ soruyla ilgili somut notlar çıkarır (ilgisizleri atar) ve kaynak numaralı bi
 biçimli görünür, `data/arastirmalar/` altına Markdown olarak kaydedilir ("📄 Raporu aç"), özeti sesli söylenir.
 Araştırma sürerken sesli asistan çalışmaya devam eder. Asistanla aynı LLM ayarları kullanılır (model yeniden yüklenmez).
 
+### 5.5 Yazılı sohbet: API + Open WebUI (`tom/api.py`)
+
+`tom/api.py` küçük bir aiohttp sunucusu (127.0.0.1:8800). OpenAI'nin `/v1/models` ve `/v1/chat/completions` (akışlı
+SSE) uçlarını taklit eder; böylece Open WebUI (ya da OpenAI uyumlu herhangi bir istemci) TOM'u bir model gibi görür.
+
+- **tom** modeli: her istekte sohbet geçmişinin son 16 mesajı + `Persona.chat_prompt()` (sesli istemin yazılı hâli:
+  kısa cevap şartı yok, Markdown serbest, kaynak göster) ile sesli TOM'daki `Agent` çalışır. Araç ipuçları ve
+  kurtarma mantığı aynı; sesli dolgular ("Bir bakayım.") atılır, çağrılan araçlar alıntı satırı olarak akar.
+  Open WebUI'deki sohbet sistem istemi varsa TOM'un istemine eklenir.
+- **tom-derin**: `DeepResearch` aynen; ilerleme adımları alıntı satırı, ardından rapor ve kaynak listesi.
+- Open WebUI'nin başlık / etiket / takip sorusu üretme istekleri (`### Task:` ile başlar) araçsız, doğrudan
+  modele gider: hızlıdır ve hafızaya karışmaz.
+- Model ayarı: sesli TOM çalışıyorsa (`pgrep`) onunla birebir aynı (`num_ctx 4096, num_gpu 26`) — farklı ayar
+  Ollama'da modeli yeniden yükletir ve GPU'yu taşırırdı. Sesli TOM kapalıysa `num_ctx 8192`, katmanları Ollama seçer.
+- Hafıza iki süreçte ortak: `Memory` her işlemde dosyayı (değiştiyse) yeniden okur ve `data/hafiza.lock` ile
+  süreçler arası kilitler; biri ötekinin yazdığını ezmez.
+- İsteğe bağlı anahtar: `TOM_API_KEY=… scripts/tom-api.sh` (Open WebUI'ye de aynı değişkenle verilir).
+
+Open WebUI `scripts/openwebui.sh` ile Docker'da çalışır (host ağı, yalnız 127.0.0.1:3000, girişsiz, telemetri kapalı).
+Bağlantılar ortam değişkeniyle hazır gelir: Ollama `127.0.0.1:11434`, TOM `127.0.0.1:8800/v1`. Arayüzden
+Ayarlar → Bağlantılar'da da görülür/değiştirilir.
+
 ## 6. Uyandırma, uyku, susturma (`tom/wake.py`)
 
 - **"Hey TOM"** ile başlayan cümleler dinlenir; cevaptan sonra 40 sn "Hey TOM" gerekmez (`--wake-window`).
@@ -286,6 +308,9 @@ PYTHONPATH=. .venv/bin/python -m tom --deepspeed --text "Saat kaç?" "Euro kaç 
 
 # Ses
 PYTHONPATH=. .venv/bin/python tools/ses_dene.py --cal
+
+# Yazılı sohbet (Open WebUI)
+scripts/tom-sohbet.sh
 
 # Testler
 PYTHONPATH=. .venv/bin/python -m pytest -q tests

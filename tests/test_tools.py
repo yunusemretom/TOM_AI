@@ -212,3 +212,16 @@ def test_youtube_and_volume_hints():
     assert "youtube_ara" in hinted_tools("YouTube'da Barış Manço'nun Gülpembe şarkısını aç")
     assert "ses_ayarla" in hinted_tools("Ses yüzde kırk olsun mu acaba")
     assert "parlaklik_ayarla" in hinted_tools("Parlaklık biraz fazla gibi")
+
+
+def test_memory_sees_other_process_writes(tmp_path):
+    from tom.tools.memory import Memory
+
+    f = tmp_path / "h.json"
+    a, b = Memory(f), Memory(f)  # sesli TOM ve API: aynı dosya, iki ayrı nesne
+    a.hatirla("kahveyi sade içer")
+    b.not_al("süt al")
+    assert "kahveyi sade içer" in b.facts  # b, a'nın yazdığını ezmedi
+    import json
+    d = json.loads(f.read_text())
+    assert d["bilgiler"] == ["kahveyi sade içer"] and d["notlar"][0]["metin"] == "süt al"

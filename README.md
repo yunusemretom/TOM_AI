@@ -55,6 +55,28 @@ Terminalden: `scripts/tom-pencere.sh` (pencere) ya da `scripts/tom-baslat.sh` (t
 
 Ses denemesi için kendi cümlelerin: `config/ses_cumleler.txt` (her satıra bir cümle) ya da `tools/ses_dene.py --cumle "…"`.
 
+## Yazılı sohbet: Open WebUI (`tom/api.py`)
+
+Sesli TOM'un beyni (Gemma 4 + araçlar + hafıza + derin araştırma) OpenAI uyumlu bir API olarak da çalışır; Open WebUI
+ona bağlanır. Ses modelleri yüklenmez, yalnız LLM.
+
+```bash
+scripts/tom-sohbet.sh          # API'yi (yoksa) arkada başlatır, Open WebUI'yi açar → http://127.0.0.1:3000
+scripts/tom-api.sh             # yalnız API: http://127.0.0.1:8800/v1 (kayıt: logs/tom-api.log, arkaplan ile)
+scripts/openwebui.sh durdur    # Open WebUI'yi durdur ("yenile": imajı güncelle)
+```
+
+Menüde TOM'a sağ tık → **TOM Sohbet (yazılı, Open WebUI)**. Model listesinde:
+- **tom**: araçlı asistan (web arama/okuma, haberler, hava, döviz, hesap, hafıza, not, hatırlatıcı, YouTube…);
+  çağrılan araçlar cevapta `> 🔎 web_ara: …` satırı olarak görünür.
+- **tom-derin**: çok kaynaklı, kaynak numaralı araştırma raporu (1-2 dk; `data/arastirmalar/`'a da kaydedilir).
+- Ollama'daki ham modeller (gemma4:e4b…) de listelenir.
+
+Hafıza (`data/hafiza.json`) sesli TOM ile ortak: birinde "şunu hatırla" dediğin ötekinde de bilinir.
+Sesli TOM açıksa API onunla aynı LLM ayarlarını kullanır (model yeniden yüklenmez, GPU'da Whisper'a yer kalır).
+Open WebUI Docker'da (`main-slim`, ~0.9 GB), yalnız bu bilgisayardan erişilir, girişsiz tek kullanıcı modunda;
+sohbetler `open-webui` volume'unda durur.
+
 ## Kullanım
 
 ```bash
