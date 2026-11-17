@@ -247,6 +247,26 @@ def main():
             print(f"Cevap: {args.output_wav}")
         return
 
+    run_live(bot, tts, persona, args)
+
+
+class Control:
+    """Pencereden canlı döngüye komutlar (thread güvenli): yazılı soru, mikrofonu kapat, uyut/uyandır, sustur."""
+
+    def __init__(self):
+        import queue
+
+        self.texts: "queue.Queue[str]" = queue.Queue()
+        self.actions: "queue.Queue[str]" = queue.Queue()
+        self.mic_muted = False
+        self.player = None
+        self.stopped = False
+
+
+def run_live(bot, tts, persona, args, control: Control | None = None, module: str = "tom") -> None:
+    """Mikrofon + hoparlörle canlı sohbet. control verilirse pencere komutları da işlenir."""
+    import numpy as np  # noqa: F811
+
     from tom.audio.io import MicStream, Player
     from tom.brain.persona import selam
     from tom.tools.pc import bildir
@@ -255,16 +275,24 @@ def main():
     if restarted:
         restore_history(bot)
     player = Player(tts.sample_rate)
+    if control is not None:
+        control.player = player
     hello = selam(persona.hitap, reminders=bot.memory.data["hatirlaticilar"] if bot.memory else None,
                   restarted=restarted)
     print(f"Dinliyorum. Çıkmak için Ctrl+C.\n\n👋 TOM: {hello}", flush=True)
     bildir("TOM hazır", hello)
+    bot.on_event("state", {"state": "idle"})
+    bot.on_event("tom", {"text": hello})
     bot.speak(hello, player.play)
     try:
         with MicStream() as mic:
             def frames():
-                while True:
-                    yield mic.frames.get()
+                silence = np.zeros(512, dtype=np.float32)
+                while control is None or not control.stopped:
+                    if control is not None:
+                        _handle_control(bot, control, player)
+                    fr = mic.frames.get()
+                    yield silence if control is not None and control.mic_muted else fr
 
             bot.run(frames(), player.play, is_speaking=lambda: player.busy,
                     on_resume=mic.drain, barge_in=player.stop if args.barge_in else None,
@@ -273,15 +301,57 @@ def main():
         print("\nGörüşürüz.")
     except Exception as e:  # noqa: BLE001 — GPU belleği yetmedi vb.: kendini yeniden başlat
         player.close()
-        restart_after_crash(bot, e)
+        restart_after_crash(bot, e, module=module)
     finally:
         player.close()
+
+
+def _handle_control(bot, control: Control, player) -> None:
+    """Canlı döngünün kendi thread'inde çalışır: asistan aynı anda tek yerden kullanılır."""
+    import queue
+
+    while True:
+        try:
+            a = control.actions.get_nowait()
+        except queue.Empty:
+            break
+        if a == "stop_speaking":
+            player.stop()
+        elif a == "sleep":
+            player.stop()
+            bot.go_to_sleep(player.play)
+        elif a == "wake" and bot.wake is not None and bot.wake.asleep:
+            from tom.wake import PHRASE_HERE
+
+            bot.wake.asleep = False
+            bot.wake.touch()
+            bot.on_wake()
+            bot.on_event("state", {"state": "idle"})
+            bot.on_event("tom", {"text": PHRASE_HERE})
+            bot.speak(PHRASE_HERE, player.play)
+    while True:
+        try:
+            text = control.texts.get_nowait()
+        except queue.Empty:
+            break
+        if bot.wake is not None:
+            if bot.wake.asleep:
+                bot.wake.asleep = False
+                bot.on_wake()
+            bot.wake.touch()
+        bot.on_event("state", {"state": "thinking"})
+        try:
+            bot.respond_text(text, player.play)
+        finally:
+            bot.on_event("state", {"state": "idle"})
+            if bot.wake is not None:
+                bot.wake.touch()
 
 
 HISTORY_FILE = Path(__file__).resolve().parent.parent / "data" / "son_konusma.json"
 
 
-def restart_after_crash(bot, err: Exception, window_s: float = 600, max_restarts: int = 3) -> None:
+def restart_after_crash(bot, err: Exception, window_s: float = 600, max_restarts: int = 3, module: str = "tom") -> None:
     """Çökünce süreci aynı argümanlarla baştan başlatır (GPU belleği tamamen temizlenir). 10 dk'da 3'ten fazla
     çökerse döngüye girmemek için durur. Son konuşma diske yazılır, yeni süreç kaldığı yerden devam eder."""
     import json
@@ -303,7 +373,7 @@ def restart_after_crash(bot, err: Exception, window_s: float = 600, max_restarts
     print(f"\n🔄 Hata: {err}\n   Yeniden başlatıyorum ({len(times)}/{max_restarts})…\n", flush=True)
     os.environ["TOM_RESTARTED"] = "1"
     os.environ["TOM_RESTART_TIMES"] = ",".join(f"{t:.0f}" for t in times)
-    os.execv(sys.executable, [sys.executable, "-m", "tom", *sys.argv[1:]])
+    os.execv(sys.executable, [sys.executable, "-m", module, *sys.argv[1:]])
 
 
 def restore_history(bot, max_age_s: float = 600) -> None:

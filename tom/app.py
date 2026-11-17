@@ -88,6 +88,9 @@ class Assistant:
         return self.persona.system_prompt(capabilities=caps, tools=self.agent is not None, facts=facts)
 
     speaking_text: str = ""  # şu an söylenen metin (konuşurken susturmada kendi sesini ayırmak için)
+    # Pencere/uzak istemci için: ("state", {"state": hearing|thinking|idle|sleeping}), ("user", {"text"}),
+    # ("tom", {"text", "skill"?, "notice"?}), ("tool", {"name", "args"}), ("ignored", {"text", "reason"})
+    on_event: Callable[[str, dict], None] = lambda kind, data: None
 
     def speak(self, text: str, play: Callable[[np.ndarray], None]) -> None:
         self.speaking_text = text
@@ -100,6 +103,7 @@ class Assistant:
 
     def respond_text(self, text: str, play: Callable[[np.ndarray], None], stt_s: float = 0.0) -> TurnLog:
         print(f"\n🗣  Sen: {text}", flush=True)
+        self.on_event("user", {"text": text})
         log = TurnLog(text, stt_s, None)
         rest, said = text, []
         t0 = time.perf_counter()
@@ -109,6 +113,7 @@ class Assistant:
             for name, res in routed.results:
                 log.skills.append(name)
                 print(f"⚡ TOM ({name}): {res.say}", flush=True)
+                self.on_event("tom", {"text": res.say, "skill": name})
                 first = [True]
 
                 def play_first(a, first=first):
@@ -151,6 +156,8 @@ class Assistant:
                       + (" · ilk deneme aracı atladı, kurtarıldı" if turn.retried else ""), flush=True)
                 log.tools += turn.tools_used
             print(f"🤖 TOM: {reply}", flush=True)
+            if reply:
+                self.on_event("tom", {"text": reply, "tools": list(turn.tools_used)})
             said.append(reply)
             log.timings = tm
             self._remember_trace(turn.trace)
@@ -187,6 +194,7 @@ class Assistant:
 
             d = self.wake.check(text, media_playing=self._media_playing())
             if not d.listen:
+                self.on_event("ignored", {"text": text, "reason": d.reason})
                 return TurnLog(text, stt_s, None, ignored=f"{d.reason}: {text[:50]}")
             if d.woke:
                 print("☀️  Uyandım.", flush=True)
@@ -194,6 +202,8 @@ class Assistant:
             text = d.text
             if not text:  # yalnız "Hey TOM"
                 print(f"\n🗣  Sen: (Hey TOM)\n🤖 TOM: {PHRASE_HERE if d.woke else PHRASE_HUH}", flush=True)
+                self.on_event("user", {"text": "Hey TOM"})
+                self.on_event("tom", {"text": PHRASE_HERE if d.woke else PHRASE_HUH})
                 self.speak(PHRASE_HERE if d.woke else PHRASE_HUH, play)
                 self.wake.touch()
                 return TurnLog("(Hey TOM)", stt_s, None)
@@ -217,6 +227,7 @@ class Assistant:
             return False
         interrupt()
         print(f"\n✋ Sen: {heard} → susturuldu", flush=True)
+        self.on_event("user", {"text": f"✋ {heard}"})
         if kind == "sleep" and self.wake is not None:
             self.go_to_sleep()
         elif self.wake is not None:
@@ -237,7 +248,9 @@ class Assistant:
             return
         self.wake.sleep()
         print(f"\n😴 TOM: {PHRASE_SLEEP}" if play else "\n😴 Uzun süre konuşulmadı, uyku moduna geçtim.", flush=True)
+        self.on_event("state", {"state": "sleeping"})
         if play is not None:
+            self.on_event("tom", {"text": PHRASE_SLEEP})
             self.speak(PHRASE_SLEEP, play)
         self.on_sleep()
 
@@ -278,6 +291,7 @@ class Assistant:
             if not speaking and not ep.speaking and not self.inbox.empty():
                 msg = self.inbox.get_nowait()
                 print(f"\n⏰ TOM: {msg}", flush=True)
+                self.on_event("tom", {"text": msg, "notice": True})
                 self.speak(msg, play)
                 was_speaking = True
                 continue
@@ -286,8 +300,14 @@ class Assistant:
                     if speaking and barge_in:
                         barge_in()
                     print("🎙  …", end="", flush=True)
+                    self.on_event("state", {"state": "hearing"})
                 elif ev.kind == "end":
-                    log = self.answer(ev.audio, play)
+                    self.on_event("state", {"state": "thinking"})
+                    try:
+                        log = self.answer(ev.audio, play)
+                    finally:
+                        asleep = self.wake is not None and self.wake.asleep
+                        self.on_event("state", {"state": "sleeping" if asleep else "idle"})
                     print(f"   ⏱  {log.line()}", flush=True)
                     logs.append(log)
                     was_speaking = True  # yanıt çalarken gelen kareleri at

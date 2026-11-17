@@ -4,6 +4,9 @@
     PYTHONPATH=. .venv/bin/python tools/ses_dene.py --hiz 0.9 --sicaklik 0.6 --cal
     PYTHONPATH=. .venv/bin/python tools/ses_dene.py --ref benim_sesim.wav --cumle "Merhaba Yunus, nasılsın?"
     PYTHONPATH=. .venv/bin/python tools/ses_dene.py --model models/xtts_ince_test2
+    PYTHONPATH=. .venv/bin/python tools/ses_dene.py --dosya cumlelerim.txt      # her satıra bir cümle
+
+Cümle sırası: --cumle > --dosya > config/ses_cumleler.txt (varsa) > 4 örnek cümle.
 
 Çıktı: logs/ses_dene/<saat>_<n>.wav (her deneme ayrı; dinleyip karşılaştır). TOM açıkken GPU yetmeyebilir,
 önce TOM'u kapat.
@@ -26,6 +29,17 @@ SENTENCES = [
 ]
 
 
+def read_sentences(path: str | None) -> list[str]:
+    from tom.voice.settings import ROOT
+
+    p = Path(path) if path else ROOT / "config" / "ses_cumleler.txt"
+    if not p.exists():
+        if path:
+            raise SystemExit(f"Dosya yok: {p}")
+        return []
+    return [l.strip() for l in p.read_text(encoding="utf-8").splitlines() if l.strip() and not l.lstrip().startswith("#")]
+
+
 def main():
     from tom.voice.settings import VoiceSettings
 
@@ -37,7 +51,9 @@ def main():
     ap.add_argument("--sicaklik", type=float, default=s.sicaklik)
     ap.add_argument("--top-p", type=float, default=s.top_p)
     ap.add_argument("--tekrar-cezasi", type=float, default=s.tekrar_cezasi)
-    ap.add_argument("--cumle", nargs="+", help="Kendi cümlelerin (varsayılan: 4 örnek)")
+    ap.add_argument("--cumle", nargs="+", help="Kendi cümlelerin (her biri tırnak içinde)")
+    ap.add_argument("--dosya", help="Cümle dosyası: her satıra bir cümle, # ile başlayan satırlar atlanır "
+                    "(verilmezse config/ses_cumleler.txt varsa o)")
     ap.add_argument("--cal", action="store_true", help="Üretince hoparlörden çal")
     ap.add_argument("--deepspeed", action="store_true")
     ap.add_argument("--cihaz", default=None, help="cuda ya da cpu (TOM açıkken GPU yetmezse cpu: yavaş ama çalışır)")
@@ -58,7 +74,7 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     stamp = time.strftime("%H%M%S")
     clips = []
-    for i, text in enumerate(args.cumle or SENTENCES):
+    for i, text in enumerate(args.cumle or read_sentences(args.dosya) or SENTENCES):
         t = time.perf_counter()
         w = tts.synthesize(text)
         f = out / f"{stamp}_{i}.wav"

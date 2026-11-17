@@ -1,0 +1,9 @@
+# Ses denemesi için cümleler: her satıra bir cümle (# ile başlayanlar atlanır).
+# tools/ses_dene.py bu dosya varsa 4 örnek cümle yerine bunları okur.
+Merhaba Yunus, bugün nasılsın?
+Ankara'da hava parçalı bulutlu, akşama doğru yağmur bekleniyor; şemsiyeni almayı unutma.
+Bunu hiç düşünmemiştim, gerçekten ilginç bir fikir! Hemen araştırıyorum.
+Yarın sabah dokuzda toplantın var. Saat on dört, otuz beşte de annenle konuşacaktın.
+Euro şu an elli beş lira kırk dokuz kuruş civarında.
+Tamam, uyuyorum. Uyandırmak için Hey TOM de.
+Hmm, emin değilim; istersen internetten bakayım mı?
