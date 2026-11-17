@@ -242,6 +242,13 @@ model aracı ona bakarak seçer.
 
 ---
 
+### 5.4 Derin araştırma (`tom/research.py`)
+
+Pencerede **Derin** düğmesini açıp soruyu yaz: TOM 4 farklı arama sorgusu planlar, ~8 sayfayı okur, her sayfadan
+soruyla ilgili somut notlar çıkarır (ilgisizleri atar) ve kaynak numaralı bir rapor yazar (~2 dk). Rapor pencerede
+biçimli görünür, `data/arastirmalar/` altına Markdown olarak kaydedilir ("📄 Raporu aç"), özeti sesli söylenir.
+Araştırma sürerken sesli asistan çalışmaya devam eder. Asistanla aynı LLM ayarları kullanılır (model yeniden yüklenmez).
+
 ## 6. Uyandırma, uyku, susturma (`tom/wake.py`)
 
 - **"Hey TOM"** ile başlayan cümleler dinlenir; cevaptan sonra 40 sn "Hey TOM" gerekmez (`--wake-window`).

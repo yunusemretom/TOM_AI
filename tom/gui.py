@@ -11,6 +11,7 @@ from __future__ import annotations
 import math
 import os
 import queue
+import re
 import sys
 import threading
 import time
@@ -26,6 +27,7 @@ STATE = {  # durum → (renk, etiket, nabız)
     "thinking": ("#f59e0b", "Düşünüyorum…", True),
     "speaking": ("#60a5fa", "Konuşuyor", True),
     "sleeping": ("#7c6fd6", "Uyuyor · Hey TOM ile uyandır", False),
+    "researching": ("#8b5cf6", "Araştırıyor…", True),
     "muted": ("#5b6b85", "Mikrofon kapalı", False),
     "error": ("#f87171", "Hata", False),
 }
@@ -57,6 +59,8 @@ class TomWindow:
         self.state = "loading"
         self.phase = 0.0
         self.bot = None
+        self.deep = False          # "Derin" düğmesi: yazılan soru derin araştırmaya gider
+        self.researching = False
         self._build()
         sys.stdout = Tee(sys.__stdout__, self.events)
         threading.Thread(target=self._worker, daemon=True, name="tom-asistan").start()
@@ -128,12 +132,25 @@ class TomWindow:
         self.chat.tag_configure("meta", justify="left", foreground=MUTED, font=self.f_small)
         self.chat.tag_configure("sys", justify="center", foreground=MUTED, font=self.f_small)
         self.chat.tag_configure("err", justify="center", foreground="#f87171", font=self.f_small)
+        self.f_head = tkfont.Font(family=self.f_text.actual()["family"], size=12, weight="bold")
+        self.f_bold = tkfont.Font(family=self.f_text.actual()["family"], size=11, weight="bold")
+        self.chat.tag_configure("step", justify="left", foreground="#a78bfa", font=self.f_small)
+        self.chat.tag_configure("report", justify="left", foreground=TEXT, rmargin=10)
+        self.chat.tag_configure("r_head", justify="left", foreground=ACCENT, font=self.f_head, spacing1=8)
+        self.chat.tag_configure("r_sum", justify="left", foreground=TEXT, font=self.f_bold, spacing3=8)
+        self.chat.tag_configure("r_item", justify="left", foreground=TEXT, lmargin1=8, lmargin2=22)
+        self.chat.tag_configure("r_src", justify="left", foreground=MUTED, font=self.f_small, lmargin1=8, lmargin2=22)
+        self.chat.tag_configure("link", justify="left", foreground=ACCENT, underline=True, font=self.f_small)
+        self.chat.tag_bind("link", "<Enter>", lambda e: self.chat.configure(cursor="hand2"))
+        self.chat.tag_bind("link", "<Leave>", lambda e: self.chat.configure(cursor="arrow"))
 
         self.entry = tk.Entry(bottom, bg=PANEL, fg=TEXT, insertbackground=TEXT, font=self.f_text, bd=0,
                               highlightthickness=1, highlightbackground=LINE, highlightcolor=ACCENT)
         self.entry.pack(side="left", fill="x", expand=True, ipady=7)
         self.entry.bind("<Return>", lambda e: self._send())
-        self._button(bottom, "Gönder", self._send).pack(side="left", padx=(8, 0))
+        self.btn_deep = self._button(bottom, "Derin", self._toggle_deep)
+        self.btn_deep.pack(side="left", padx=(8, 0))
+        self._button(bottom, "Gönder", self._send).pack(side="left", padx=(6, 0))
         self._placeholder()
         r.protocol("WM_DELETE_WINDOW", self._close)
 
@@ -143,22 +160,21 @@ class TomWindow:
                          font=self.f_small, padx=8, pady=4, cursor="hand2")
 
     def _placeholder(self):
-        ph = "Yaz ya da konuş…"
+        self._ph = "Yaz ya da konuş…"
 
         def on_in(_):
-            if self.entry.get() == ph:
+            if self.entry.get() == self._ph:
                 self.entry.delete(0, "end")
                 self.entry.configure(fg=TEXT)
 
         def on_out(_):
             if not self.entry.get():
-                self.entry.insert(0, ph)
+                self.entry.insert(0, self._ph)
                 self.entry.configure(fg=MUTED)
 
         self.entry.bind("<FocusIn>", on_in)
         self.entry.bind("<FocusOut>", on_out)
         on_out(None)
-        self._ph = ph
 
     # ---------------- sohbet ----------------
     def _append(self, text: str, tag: str, meta: str | None = None):
@@ -197,12 +213,26 @@ class TomWindow:
             elif data.get("tools"):
                 meta = "🔧 " + ", ".join(data["tools"])
             elif data.get("notice"):
-                meta = "⏰ hatırlatma"
+                meta = "🔔 bildirim"
             self._append(data["text"], "tom", meta)
         elif kind == "log" and self.state == "loading":
             line = data["text"]
             if any(k in line for k in ("yükleniyor", "ısınıyor", "Hazır cümle", "Ses:")):
                 self.status.configure(text=line[:60])
+        elif kind == "research_step":
+            self._append(data["text"], "step")
+        elif kind == "research_start":
+            self.chat.configure(state="normal")
+            self.chat.mark_set("rep_start", "end-1c")
+            self.chat.mark_gravity("rep_start", "left")
+            self.chat.configure(state="disabled")
+        elif kind == "research_text":
+            self.chat.configure(state="normal")
+            self.chat.insert("end", data["piece"], "report")
+            self.chat.configure(state="disabled")
+            self.chat.see("end")
+        elif kind == "research_done":
+            self._render_report(data["report"])
         elif kind == "error":
             self.state = "error"
             self._sys(data["text"], "err")
@@ -215,6 +245,8 @@ class TomWindow:
         p = self.control.player
         if p is not None and p.busy:
             return "speaking"
+        if self.researching and self.state == "idle":
+            return "researching"
         if self.control.mic_muted and self.state == "idle":
             return "muted"
         return self.state
@@ -252,7 +284,86 @@ class TomWindow:
         if not t or t == self._ph or self.bot is None:
             return
         self.entry.delete(0, "end")
-        self.control.texts.put(t)
+        if self.deep:
+            self._start_research(t)
+        else:
+            self.control.texts.put(t)
+
+    # ---------------- derin araştırma ----------------
+    def _toggle_deep(self):
+        self.deep = not self.deep
+        self.btn_deep.configure(bg="#8b5cf6" if self.deep else PANEL, fg="#ffffff" if self.deep else TEXT)
+        self._ph_text = "Derin araştırma: sorunu yaz…" if self.deep else "Yaz ya da konuş…"
+        if self.entry.get() in ("Yaz ya da konuş…", "Derin araştırma: sorunu yaz…"):
+            self.entry.delete(0, "end")
+            self.entry.insert(0, self._ph_text)
+            self.entry.configure(fg=MUTED)
+        self._ph = self._ph_text
+
+    def _start_research(self, question: str):
+        if self.researching:
+            self._sys("Bir araştırma zaten sürüyor; bitince yenisini başlatabilirsin.")
+            return
+        self.researching = True
+        self._append(question, "user", "🔬 derin araştırma")
+        bot = self.bot
+
+        def work():
+            from tom.research import default_research
+
+            q = self.events
+            try:
+                dr = default_research(bot.llm_model, bot.llm_options)
+                started = [False]
+
+                def on_text(piece):
+                    if not started[0]:
+                        started[0] = True
+                        q.put(("research_start", {}))
+                    q.put(("research_text", {"piece": piece}))
+
+                rep = dr.run(question, progress=lambda t: q.put(("research_step", {"text": t})), on_text=on_text)
+                q.put(("research_done", {"report": rep}))
+                if rep.summary:
+                    bot.notify(f"Araştırma bitti. {rep.summary}")  # boşta olduğu ilk anda sesli söylenir
+            except Exception as e:  # noqa: BLE001
+                q.put(("error", {"text": f"Araştırma hatası: {type(e).__name__}: {e}"}))
+            finally:
+                self.researching = False
+
+        threading.Thread(target=work, daemon=True, name="tom-arastirma").start()
+
+    def _render_report(self, rep):
+        """Akan ham metni biçimli rapora çevir: başlıklar, maddeler, kaynaklar, 'Raporu aç' bağlantısı."""
+        c = self.chat
+        c.configure(state="normal")
+        try:
+            c.delete("rep_start", "end-1c")
+        except tk.TclError:
+            pass
+        c.insert("end", "\n")
+        for line in rep.text.splitlines():
+            l = line.strip()
+            if not l:
+                continue
+            if l.startswith("#"):
+                c.insert("end", l.lstrip("#").strip() + "\n", "r_head")
+            elif re.match(r"^\**Özet\**\s*:", l, re.I):
+                c.insert("end", re.sub(r"\*", "", l) + "\n", "r_sum")
+            elif re.match(r"^[-*•]\s+", l):
+                c.insert("end", "• " + re.sub(r"\*\*", "", re.sub(r"^[-*•]\s+", "", l)) + "\n", "r_item")
+            else:
+                c.insert("end", re.sub(r"\*\*", "", l) + "\n", "report")
+        if rep.sources:
+            c.insert("end", "Kaynaklar\n", "r_head")
+            for src in rep.sources:
+                c.insert("end", f"{src.n}. {src.title} — {src.url}\n", "r_src")
+        if rep.path:
+            tag = f"link{id(rep)}"
+            c.insert("end", "📄 Raporu aç\n", ("link", tag))
+            c.tag_bind(tag, "<Button-1>", lambda e, p=str(rep.path): __import__("subprocess").Popen(["xdg-open", p]))
+        c.configure(state="disabled")
+        c.see("end")
 
     def _toggle_mic(self):
         self.control.mic_muted = not self.control.mic_muted

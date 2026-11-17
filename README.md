@@ -49,7 +49,7 @@ Adımlar `requirements.txt` dosyasının başında (torch cu124 + coqui-tts + De
 bash scripts/masaustune-ekle.sh        # bir kez: uygulama menüsüne "TOM" ekler (kaldırmak: --kaldir)
 ```
 
-Menüden **TOM**'a tıkla → küçük pencere açılır (durum küresi, sohbet, Mikrofon/Uyut/Sus/Üstte düğmeleri, yazarak soru). Sağ tık: "TOM (hızlı model, e2b)", "TOM (terminalde, ayrıntılı kayıt)" ve "TOM'u kapat". Pencere kayıtları: `logs/tom-pencere.log`.
+Menüden **TOM**'a tıkla → küçük pencere açılır (durum küresi, sohbet, Mikrofon/Uyut/Sus/Üstte düğmeleri, yazarak soru). Sağ tık: "TOM (hızlı model, e2b)", "TOM (terminalde, ayrıntılı kayıt)" ve "TOM'u kapat". Pencere kayıtları: `logs/tom-pencere.log`. **Derin** düğmesi: yazılan soru için çok kaynaklı araştırma raporu (`data/arastirmalar/`).
 Zaten açıksa ikinci kez başlatmaz. Dock'a sabitlemek: sağ tık → "Sık kullanılanlara ekle".
 Terminalden: `scripts/tom-pencere.sh` (pencere) ya da `scripts/tom-baslat.sh` (terminal); ek argümanlar TOM'a geçer. Kapatmak: `scripts/tom-kapat.sh`.
 
